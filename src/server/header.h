@@ -15,10 +15,12 @@
 
 char *strtrim(char const *str);
 
-struct Train {
+struct Customer {
 	int id;
-	int availableSeats;
-	struct Seat **seats;
+	char *name;
+	char *dateOfBirth;
+	char *gender;
+	char *governmentId;
 };
 
 struct Seat {
@@ -27,6 +29,13 @@ struct Seat {
 	char *updateDate;
 	char *status; //Open, Reserved
 };
+
+struct Train {
+	int id;
+	int availableSeats;
+	struct Seat **seats;
+};
+
 
 struct Reservation {
 	int id;
@@ -43,14 +52,6 @@ struct Ticket {
 	char *updateDate;
 	char *travelDate;
 	struct Customer customer;
-};
-
-struct Customer {
-	int id;
-	char *name;
-	char *dateOfBirth;
-	char *gender;
-	char *governmentId;
 };
 
 #endif /* SRC_SERVER_HEADER_H_ */

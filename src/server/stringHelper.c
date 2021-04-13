@@ -9,6 +9,8 @@
  Description :
  ============================================================================
  */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "header.h"
@@ -71,7 +73,7 @@ char *strtrim(char const *str) {
     if (str != NULL) {
         i = 0;
         len = get_trim_len(str) + 1;
-        trim = (char *)malloc(len);
+        trim = (char *) malloc(len);
         start = get_first_position(str);
         // Copy content to trim string
         while (i < len) {

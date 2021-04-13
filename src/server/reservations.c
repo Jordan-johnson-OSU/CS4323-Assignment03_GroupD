@@ -19,13 +19,13 @@
 #include "header.h"
 
 struct Reservation* createReservation() {
-
+	return NULL;
 }
 
 struct Reservation* modifyReservation() {
-
+	return NULL;
 }
 
 struct Reservation* cancelReservation() {
-
+	return NULL;
 }
