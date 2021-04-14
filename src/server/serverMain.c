@@ -23,31 +23,58 @@
 #include "header.h"
 
 #define PORT 9090
+#define SERVER_CNT 50
 #define SA struct sockaddr
 
-char client_message[2000];
-char buffer[1024];
+
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  *
  */
 void* socketThread(void *arg) {
-	printf("Socket Connected Thread");
-	int newSocket = *((int*) arg);
-	recv(newSocket, client_message, 2000, 0);
+	printf("Socket Connected Thread\n");
 
-	// Send message to the client socket
-	pthread_mutex_lock(&lock);
-	char *message = malloc(sizeof(client_message) + 20);
-	strcpy(message, "Hello Client : ");
-	strcat(message, client_message);
-	strcat(message, "\n");
-	strcpy(buffer, message);
-	free(message);
-	pthread_mutex_unlock(&lock);
-	sleep(1);
-	send(newSocket, buffer, 13, 0);
+	char client_message[2000];
+	char *server_response;
+
+	int newSocket = *((int*) arg);
+	int read_size;
+
+	while( 1 ) {
+		server_response = "Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
+		printf("Sending message size: %d, |%s|", strlen(server_response), server_response);
+		send(newSocket, server_response, strlen(server_response), 0);
+
+		recv(newSocket, client_message, 2000, 0);
+
+		printf("Option %s selected\n", client_message);
+
+		if(strcmp(client_message, "5") == 0) {
+			server_response = "exit";
+			send(newSocket, server_response, strlen(server_response), 0);
+			break;
+		}
+
+		server_response = "continue";
+		send(newSocket, server_response, strlen(server_response), 0);
+
+		if(strcmp(client_message, "1") == 0) {
+
+			//find the critical section
+			pthread_mutex_lock(&lock);
+			pthread_mutex_unlock(&lock);
+			//End critical section.
+
+		} else if(strcmp(client_message, "2") == 0) {
+
+		} else if(strcmp(client_message, "3") == 0) {
+
+		} else if(strcmp(client_message, "4") == 0) {
+
+		}
+	}
+
 	printf("Exit socketThread \n");
 	close(newSocket);
 	pthread_exit(NULL);
@@ -93,7 +120,7 @@ int main(int argc, char **argv) {
 	}
 
 
-	pthread_t tid[60];
+	pthread_t tid[SERVER_CNT];
 	int i = 0;
 	while (1) {
 		// Accept call creates a new socket for the incoming connection
@@ -112,11 +139,13 @@ int main(int argc, char **argv) {
 		if (pthread_create(&tid[i++], NULL, socketThread, &connectionId) != 0)
 			printf("Failed to create thread\n");
 
-		if (i >= 50) {
+		//We are all full of connections, lets wait to free one up.
+		if (i >= SERVER_CNT) {
 			i = 0;
-			while (i < 50) {
+			while (i < SERVER_CNT) {
 				pthread_join(tid[i++], NULL);
 				//TODO: free up the connection
+				i--;
 			}
 			i = 0;
 		}

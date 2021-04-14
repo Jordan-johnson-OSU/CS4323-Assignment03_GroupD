@@ -32,8 +32,8 @@
  */
 void* cientThread(void *arg) {
 	printf("In thread\n");
-	char message[1000];
-	char buffer[1024];
+	char response[2000];
+	char server_message[2000];
 
 	/**
 	 * Open the Socket to the Server
@@ -57,18 +57,39 @@ void* cientThread(void *arg) {
 		printf("\tSocket successfully connected to the server.\n");
 	}
 
-	strcpy(message, "Hello");
+	while (1) {
 
-	if (send(socketId, message, strlen(message), 0) < 0) {
-		printf("Send failed\n");
+		bzero(&server_message, sizeof(server_message));
+
+		//Read the response from the server into the server_message
+		if (recv(socketId, server_message, 2000, 0) < 0) {
+			printf("Receive failed\n");
+		}
+		//Print the received message
+		printf("%s\n", server_message);
+
+		scanf("%s", response);
+
+		if (send(socketId, response, strlen(response), 0) < 0) {
+			printf("Send failed\n");
+		}
+
+		bzero(&response, sizeof(response));
+		bzero(&server_message, sizeof(server_message));
+
+		//Read the response from the server to continue.
+		if (recv(socketId, server_message, 2000, 0) < 0) {
+			printf("Receive failed\n");
+		}
+
+		if (strcmp(server_message, "exit") == 0) {
+			printf("Session exiting, Good Bye!");
+			break;
+		}
+
+		bzero(&server_message, sizeof(server_message));
 	}
 
-	//Read the message from the server into the buffer
-	if (recv(socketId, buffer, 1024, 0) < 0) {
-		printf("Receive failed\n");
-	}
-	//Print the received message
-	printf("Data received: %s\n", buffer);
 	close(socketId);
 	pthread_exit(NULL);
 }
@@ -85,16 +106,17 @@ void* cientThread(void *arg) {
 int main(int argc, char **argv) {
 	int i = 0;
 	pthread_t tid[51];
-	while (i < 50) {
+	while (i < 1) {
 		if (pthread_create(&tid[i], NULL, cientThread, NULL) != 0)
 			printf("Failed to create thread\n");
 		i++;
 	}
 	sleep(20);
 	i = 0;
-	while (i < 50) {
+	while (i < 1) {
 		pthread_join(tid[i++], NULL);
 		printf("%d:\n", i);
 	}
+	printf("Client Main End");
 	return 0;
 }
