@@ -54,4 +54,6 @@ struct Ticket {
 	struct Customer customer;
 };
 
+void* threadMonitor (void *arg);
+
 #endif /* SRC_SERVER_HEADER_H_ */

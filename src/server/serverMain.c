@@ -23,7 +23,7 @@
 #include "header.h"
 
 #define PORT 9090
-#define SERVER_CNT 50
+#define SERVER_CNT 5
 #define SA struct sockaddr
 
 
@@ -33,17 +33,16 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
  *
  */
 void* socketThread(void *arg) {
-	printf("Socket Connected Thread\n");
+	int newSocket = *((int*) arg);
+	printf("Client(%d) Connected to Server Thread: %d\n",newSocket, getpid());
 
 	char client_message[2000];
 	char *server_response;
-
-	int newSocket = *((int*) arg);
 	int read_size;
 
 	while( 1 ) {
 		server_response = "Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
-		printf("Sending message size: %d, |%s|", strlen(server_response), server_response);
+		//printf("Sending message size: %d, |%s|", strlen(server_response), server_response);
 		send(newSocket, server_response, strlen(server_response), 0);
 
 		recv(newSocket, client_message, 2000, 0);
@@ -119,7 +118,7 @@ int main(int argc, char **argv) {
 		printf("\tServer listening.\n");
 	}
 
-
+	//TODO: Make this an input?
 	pthread_t tid[SERVER_CNT];
 	int i = 0;
 	while (1) {
