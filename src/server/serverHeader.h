@@ -36,13 +36,6 @@ struct Train {
 	struct Seat **seats;
 };
 
-struct Reservation {
-	int id;
-	int serverId;
-	char *updateDate;
-	int numTickets;
-	struct Ticket *tickets;
-};
 
 struct Ticket {
 	int id;
@@ -53,7 +46,23 @@ struct Ticket {
 	struct Customer customer;
 };
 
+struct Reservation {
+	int id;
+	int serverId;
+	char *updateDate;
+	int numTickets;
+	struct Ticket *tickets;
+};
+
+
 void* threadMonitor (void *arg);
 void* serverThread(void *arg);
+
+void createReservation(int connectionFd);
+void inquireReservation(int connectionFd);
+void modifyReservation(int connectionFd);
+void cancelReservation(int connectionFd);
+void writeSummary(struct Reservation res, struct Train t, int *selectedSeats);
+void readSeats(struct Train *t, char *fileName);
 
 #endif /* SRC_SERVER_HEADER_H_ */

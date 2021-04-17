@@ -32,7 +32,6 @@ void* serverThread(void *arg) {
 
 	char client_message[2000];
 	char *server_response;
-	int read_size;
 
 	while( 1 ) {
 		server_response = "Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
@@ -41,7 +40,7 @@ void* serverThread(void *arg) {
 
 		recv(newSocket, client_message, 2000, 0);
 
-		printf("Option %s selected\n", client_message);
+		printf("Client(%d) Option %s selected\n",newSocket, client_message);
 
 		if(strcmp(client_message, "5") == 0) {
 			server_response = "exit";

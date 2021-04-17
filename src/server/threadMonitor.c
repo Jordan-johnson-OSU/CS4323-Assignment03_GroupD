@@ -25,6 +25,7 @@
 void* serverThreadMonitorThread (void *arg) {
 	//run while the program is running.
 	while(1) {
-
+		//Keep track of shared memory for the running threads
+		//if one hasn't been used in awhile(1 min), end the thread and give it back to the pool to allocate.
 	}
 }
