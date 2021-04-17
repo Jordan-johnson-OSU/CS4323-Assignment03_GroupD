@@ -20,64 +20,11 @@
 #include <unistd.h> // for close
 #include <pthread.h>
 
-#include "header.h"
+#include "serverHeader.h"
 
 #define PORT 9090
 #define SERVER_CNT 5
 #define SA struct sockaddr
-
-
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-/**
- *
- */
-void* socketThread(void *arg) {
-	int newSocket = *((int*) arg);
-	printf("Client(%d) Connected to Server Thread: %d\n",newSocket, getpid());
-
-	char client_message[2000];
-	char *server_response;
-	int read_size;
-
-	while( 1 ) {
-		server_response = "Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
-		//printf("Sending message size: %d, |%s|", strlen(server_response), server_response);
-		send(newSocket, server_response, strlen(server_response), 0);
-
-		recv(newSocket, client_message, 2000, 0);
-
-		printf("Option %s selected\n", client_message);
-
-		if(strcmp(client_message, "5") == 0) {
-			server_response = "exit";
-			send(newSocket, server_response, strlen(server_response), 0);
-			break;
-		}
-
-		server_response = "continue";
-		send(newSocket, server_response, strlen(server_response), 0);
-
-		if(strcmp(client_message, "1") == 0) {
-
-			//find the critical section
-			pthread_mutex_lock(&lock);
-			pthread_mutex_unlock(&lock);
-			//End critical section.
-
-		} else if(strcmp(client_message, "2") == 0) {
-
-		} else if(strcmp(client_message, "3") == 0) {
-
-		} else if(strcmp(client_message, "4") == 0) {
-
-		}
-	}
-
-	printf("Exit socketThread \n");
-	close(newSocket);
-	pthread_exit(NULL);
-}
 
 /**
  * Arguments:
@@ -127,26 +74,24 @@ int main(int argc, char **argv) {
 		connectionId = accept(socketId, (struct sockaddr*) NULL, NULL);
 		if (connectionId < 0) {
 			printf("\tServer accept failed.\n");
-			return 1;
 		} else {
 			printf("\tServer accept the client.\n");
-		}
 
+			//for each client request creates a thread and assign the client request to it to process
+			//so the main thread can entertain next request
+			if (pthread_create(&tid[i++], NULL, serverThread, &connectionId) != 0)
+				printf("Failed to create thread\n");
 
-		//for each client request creates a thread and assign the client request to it to process
-		//so the main thread can entertain next request
-		if (pthread_create(&tid[i++], NULL, socketThread, &connectionId) != 0)
-			printf("Failed to create thread\n");
-
-		//We are all full of connections, lets wait to free one up.
-		if (i >= SERVER_CNT) {
-			i = 0;
-			while (i < SERVER_CNT) {
-				pthread_join(tid[i++], NULL);
-				//TODO: free up the connection
-				i--;
+			//We are all full of connections, lets wait to free.
+			if (i >= SERVER_CNT) {
+				i = 0;
+				while (i < SERVER_CNT) {
+					pthread_join(tid[i++], NULL);
+					//TODO: free up the connection
+					i--;
+				}
+				i = 0;
 			}
-			i = 0;
 		}
 	}
 	return 0;

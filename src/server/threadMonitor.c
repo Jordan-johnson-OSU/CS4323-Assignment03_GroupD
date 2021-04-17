@@ -20,9 +20,9 @@
 #include <unistd.h> // for close
 #include <pthread.h>
 
-#include "header.h"
+#include "serverHeader.h"
 
-void* threadMonitor (void *arg) {
+void* serverThreadMonitorThread (void *arg) {
 	//run while the program is running.
 	while(1) {
 
