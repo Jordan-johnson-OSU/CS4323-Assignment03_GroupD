@@ -21,56 +21,51 @@
 
 #include "serverHeader.h"
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
 /**
  *  This is the thread that interacts with the client and will control
  */
 void* serverThread(void *arg) {
 	int newSocket = *((int*) arg);
-	printf("Client(%d) Connected to Server Thread: %d\n",newSocket, getpid());
+	printf("Client(%d) Connected to Server Thread: %d\n", newSocket, getpid());
 
 	char client_message[2000];
 	char *server_response;
 
-	while( 1 ) {
-		server_response = "Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
+	while (1) {
+		server_response =
+				"Please choose an Option (1-5): \n\t1. Make a reservation.\n\t2. Inquire about a ticket.\n\t3. Modify the reservation.\n\t4. Cancel the reservation.\n\t5. Exit the program.\n";
 		//printf("Sending message size: %d, |%s|", strlen(server_response), server_response);
 		send(newSocket, server_response, strlen(server_response), 0);
 
 		recv(newSocket, client_message, 2000, 0);
 
-		printf("Client(%d) Option %s selected\n",newSocket, client_message);
+		printf("Client(%d) Option %s selected\n", newSocket, client_message);
 
-		if(strcmp(client_message, "5") == 0) {
+		if (strcmp(client_message, "5") == 0) {
 			server_response = "exit";
 			send(newSocket, server_response, strlen(server_response), 0);
+			//TODO: free up this thread in the thread pool.
 			break;
 		}
 
 		server_response = "continue";
 		send(newSocket, server_response, strlen(server_response), 0);
 
+		if (strcmp(client_message, "1") == 0) { // Create Reservation
 
-		if(strcmp(client_message, "1") == 0) {
-			//TODO: Make a Reservation
 			createReservation(newSocket);
 
-			//find the critical section
-			pthread_mutex_lock(&lock);
-			pthread_mutex_unlock(&lock);
-			//End critical section.
+		} else if (strcmp(client_message, "2") == 0) { // Inquire about Ticket
 
-		} else if(strcmp(client_message, "2") == 0) {
-			//TODO: Inquire about a ticket.
-			inquireReservation(newSocket);
+			//Inquire about a ticket.
+			inquireTicket(newSocket);
 
-		} else if(strcmp(client_message, "3") == 0) {
-			//TODO: Modify the Reservation.
+		} else if (strcmp(client_message, "3") == 0) { // Modify Reservation
+
 			modifyReservation(newSocket);
 
-		} else if(strcmp(client_message, "4") == 0) {
-			//TODO: Cancel the Reservation.
+		} else if (strcmp(client_message, "4") == 0) { // Cancel Reservation
+
 			cancelReservation(newSocket);
 		}
 	}

@@ -1,7 +1,7 @@
 /*
  ============================================================================
  Name        : Assignment03 - Final Project - Group D
- Author(s)   : Jordan Johnson, Mohammad Musaqlab
+ Author(s)   : Jordan Johnson
  Email		 : jjohn84@ostatemail.okstate.edu,
  Date		 : 4/02/2021
  Copyright   : Copyright 2021 MIT License
@@ -23,8 +23,10 @@
 #include "serverHeader.h"
 
 #define PORT 9090
-#define SERVER_CNT 5
+#define THREAD_CNT 3
 #define SA struct sockaddr
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Arguments:
@@ -36,6 +38,7 @@
  *
  */
 int main(int argc, char **argv) {
+
 	int socketId, connectionId = 0;
 	struct sockaddr_in saddress;
 
@@ -65,8 +68,12 @@ int main(int argc, char **argv) {
 		printf("\tServer listening.\n");
 	}
 
-	//TODO: Make this an input?
-	pthread_t tid[SERVER_CNT];
+	if (pthread_mutex_init(&lock, NULL) != 0) {
+		printf("Mutex init has failed\n");
+		return 1;
+	}
+
+	pthread_t tid[THREAD_CNT];
 	int i = 0;
 	while (1) {
 		// Accept call creates a new socket for the incoming connection
@@ -75,24 +82,31 @@ int main(int argc, char **argv) {
 		if (connectionId < 0) {
 			printf("\tServer accept failed.\n");
 		} else {
-			printf("\tServer accept the client.\n");
+			i++;
+
+			printf("\tServer accept the client %ld.\n", tid[i]);
 
 			//for each client request creates a thread and assign the client request to it to process
 			//so the main thread can entertain next request
-			if (pthread_create(&tid[i++], NULL, serverThread, &connectionId) != 0)
+			if (pthread_create(&tid[i++], NULL, serverThread, &connectionId) != 0) {
 				printf("Failed to create thread\n");
+			}
 
 			//We are all full of connections, lets wait to free.
-			if (i >= SERVER_CNT) {
+			if (i >= THREAD_CNT) {
 				i = 0;
-				while (i < SERVER_CNT) {
+				while (i < THREAD_CNT) {
 					pthread_join(tid[i++], NULL);
 					//TODO: free up the connection
 					i--;
 				}
 				i = 0;
 			}
+
 		}
 	}
+
+	pthread_mutex_destroy(&lock);
+
 	return 0;
 }
