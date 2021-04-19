@@ -30,7 +30,7 @@
 /**
  *
  */
-void* cientThread(void *arg) {
+void* clientThread(void *arg) {
 	printf("In thread\n");
 	char response[2000];
 	char server_message[2000];

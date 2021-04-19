@@ -13,6 +13,6 @@
 #ifndef SRC_CLIENT_HEADER_H_
 #define SRC_CLIENT_HEADER_H_
 
-void* cientThread(void *arg);
+void* clientThread(void *arg);
 
 #endif /* SRC_CLIENT_HEADER_H_ */
