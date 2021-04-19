@@ -2,85 +2,61 @@
  ============================================================================
  Name        : Assignment03 - Final Project - Group D
  Author(s)   : Jordan Johnson, Mohammad Musaqlab
- Email		 : jjohn84@ostatemail.okstate.edu,
+ Email		 : jjohn84@ostatemail.okstate.edu, Mohammed.Musaqlab@okstate.edu
  Date		 : 4/02/2021
  Copyright   : Copyright 2021 MIT License
 
  Description :
  ============================================================================
  */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "header.h"
+#include "serverHeader.h"
 
 /*
-** Auxiliary function to skip white spaces
-*/
-int is_white_space(char c) {
-    return (c == ' ' || c == '\t' || c == '\n');
-}
+ ** Allocates a new string with removed whitespace characters from the beginning of the source string `str`
+ ** Based on: https://jraleman.medium.com/implementation-of-the-c-function-strtrim-1a1ea0c60b38
+ */
+char* strtrim(char const *str) {
 
-/*
-** Iterate through the whitespaces at the beginning of the string
-*/
-int get_first_position(char const *str) {
-    int i = 0;
-    while (is_white_space(str[i])) {
-        i += 1;
-    }
-    return (i);
-}
+	char *trim = NULL;
+	int i, len, start;
 
-/*
-** Get the length of a string
-*/
-int get_str_len(char const *str) {
-    int len = 0;
-    while (str[len] != '\0') {
-        len += 1;
-    }
-    return (len);
-}
-/*
-** Find the last position in a string that is not a white space
-*/
-int get_last_position(char const *str) {
-    int i = get_str_len(str) - 1;
-    while (is_white_space(str[i])) {
-        i -= 1;
-    }
-    return (i);
-}
+	// Check if the string exists
+	if (str != NULL) {
+		i = 0;
 
-/*
-** Returns the correct length of a trimmed string
-*/
-int get_trim_len(char const *str) {
-    return (get_last_position(str) - get_first_position(str));
-}
+		int lastPos = 0;
+		//Find the first null out position (we have to null out our memory)
+		while (str[lastPos] != '\0') {
+			lastPos += 1;
+		}
+		//trim any whitespaces, tabs, or new lines on the last position
+		while ((str[lastPos] == ' ' || str[lastPos] == '\t' || str[lastPos] == '\n')) {
+			lastPos -= 1;
+		}
 
-/*
-** Allocates a new string with removed whitespace characters from the beginning of the source string `str`
-** https://jraleman.medium.com/implementation-of-the-c-function-strtrim-1a1ea0c60b38
-*/
-char *strtrim(char const *str) {
-// Variables declaration
-    char *trim = NULL;
-    int i, len, start;
-    // Check if the string exists
-    if (str != NULL) {
-        i = 0;
-        len = get_trim_len(str) + 1;
-        trim = (char *)malloc(len);
-        start = get_first_position(str);
-        // Copy content to trim string
-        while (i < len) {
-            trim[i] = str[start];
-            i += 1;
-            start += 1;
-        }
-        // Null terminate the trimmed string.
-        trim[i] = '\0';
-    }
-    return (trim);
+		int firstPos = 0;
+		//trim any whitespaces, tabs, or new lines on the first postion
+		while ((str[firstPos] == ' ' || str[firstPos] == '\t' || str[firstPos] == '\n')) {
+			firstPos += 1;
+		}
+
+		len = (lastPos - firstPos) + 1;
+		trim = (char*) malloc(len);
+		start = firstPos;
+
+		// Copy content to trim string
+		while (i < len) {
+			trim[i] = str[start];
+			i += 1;
+			start += 1;
+		}
+
+		// Null terminate the trimmed string.
+		trim[i] = '\0';
+	}
+	return (trim);
 }
