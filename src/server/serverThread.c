@@ -21,10 +21,11 @@
 
 #include "serverHeader.h"
 
+
 /**
  *  This is the thread that interacts with the client and will control
  */
-void* serverThread(void *arg) {
+void serverThread(void *arg) {
 	int newSocket = *((int*) arg);
 	printf("Client(%d) Connected to Server Thread: %d\n", newSocket, getpid());
 

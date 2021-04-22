@@ -66,11 +66,21 @@ struct tpool {
 	struct thread *threads;
 	volatile int threadsAlive;
 	pthread_mutex_t threadCountLock;
-//	pthread_cond_t  threadsAllIdle;
+	pthread_cond_t  threadIdle;
 };
 
+struct queueItem {
+	struct queueItem* next;
+	int *clientSocket;
+};
+typedef struct queueItem qItem;
+
 void* threadMonitor (void *arg);
-void* serverThread(void *arg);
+void* monitorThread(void *arg);
+void serverThread(void *arg);
+
+void putQueue(int *clientSocket);
+int* readQueue();
 
 struct tpool* initThreadPool(int num_threads);
 

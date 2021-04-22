@@ -18,22 +18,65 @@
 
 #include "serverHeader.h"
 
+qItem *head = NULL;
+qItem *tail = NULL;
+
+
+/**
+ * Queue Implementation
+ */
+void putQueue(int *clientSocket) {
+	qItem *newItem = malloc(sizeof(qItem));
+	newItem->next = NULL;
+	newItem->clientSocket = clientSocket;
+
+	if (tail == NULL) {
+		head = newItem;
+	} else {
+		tail->next = newItem;
+	}
+	tail = newItem;
+}
+
+/**
+ * Removes the first item from Queue;
+ */
+int* readQueue() {
+	if (head == NULL) {
+		return NULL;
+	} else {
+		int *clientSocket = head->clientSocket;
+		//Free up space on the queue;
+		qItem *temp = head;
+		head = head->next;
+		if (head == NULL) {
+			tail = NULL;
+		}
+		free(temp);
+
+		return clientSocket;
+	}
+}
+
 /**
  *
  */
-static int initThread(struct tpool *thpool_p, struct thread **thread_p, int id) {
+static int initThread(struct tpool *pool, struct thread **thread, int id) {
 
-	*thread_p = (struct thread*) malloc(sizeof(struct thread));
-	if (*thread_p == NULL) {
+	*thread = (struct thread*) malloc(sizeof(struct thread));
+	if (*thread == NULL) {
 		perror("Could not allocate memory for thread\n");
 		return -1;
 	}
 
-	(*thread_p)->thpool_p = thpool_p;
-	(*thread_p)->id = id;
+	(*thread)->thpool_p = pool;
+	(*thread)->id = id;
 
-	pthread_create(&(*thread_p)->pthread, NULL, (void* (*)(void*)) serverThread, (*thread_p));
-	pthread_detach((*thread_p)->pthread);
+	pthread_mutex_init(&(pool->threadCountLock), NULL);
+	pthread_cond_init(&(pool->threadIdle), NULL);
+
+	pthread_create(&(*thread)->pthread, NULL, (void* (*)(void*)) serverThread, (*thread));
+	pthread_detach((*thread)->pthread);
 	return 0;
 }
 

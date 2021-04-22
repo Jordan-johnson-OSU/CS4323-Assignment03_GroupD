@@ -26,7 +26,34 @@
 #define THREAD_CNT 3
 #define SA struct sockaddr
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t tPoolLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t tPoolCond = PTHREAD_COND_INITIALIZER;
+
+/**
+ * This is just a thread that is running the backend code to handle the client, but waiting for a new connection on the queue, and waiting until one is available to not take up all the CPU.
+ *
+ * Arguments:
+ * 		arg - not needed (NULL)
+ * 		argv - pointer to all the input arguments.
+ *
+ * Return:
+ *		0 for Success.
+ */
+void* monitorThread(void *arg) {
+	while (1) {
+		pthread_mutex_lock(&tPoolLock);
+		int *client;
+		if ((client = readQueue()) == NULL) {
+			pthread_cond_wait(&tPoolCond, &tPoolLock);
+			client = readQueue();
+		}
+		pthread_mutex_unlock(&tPoolLock);
+		if (client != NULL) {
+			//Client connection available.
+			serverThread(client);
+		}
+	}
+}
 
 /**
  * Arguments:
@@ -68,13 +95,17 @@ int main(int argc, char **argv) {
 		printf("\tServer listening.\n");
 	}
 
-	if (pthread_mutex_init(&lock, NULL) != 0) {
+	if (pthread_mutex_init(&tPoolLock, NULL) != 0) {
 		printf("Mutex init has failed\n");
 		return 1;
 	}
 
 	pthread_t tid[THREAD_CNT];
 	int i = 0;
+	for (i = 0; i < THREAD_CNT; i++) {
+		pthread_create(&tid[i], NULL, monitorThread, NULL);
+	}
+
 	while (1) {
 		// Accept call creates a new socket for the incoming connection
 		// Accept the data packet from client and verification
@@ -82,31 +113,18 @@ int main(int argc, char **argv) {
 		if (connectionId < 0) {
 			printf("\tServer accept failed.\n");
 		} else {
-			i++;
+			printf("\tServer accept the client.\n");
 
-			printf("\tServer accept the client %ld.\n", tid[i]);
-
-			//for each client request creates a thread and assign the client request to it to process
-			//so the main thread can entertain next request
-			if (pthread_create(&tid[i++], NULL, serverThread, &connectionId) != 0) {
-				printf("Failed to create thread\n");
-			}
-
-			//We are all full of connections, lets wait to free.
-			if (i >= THREAD_CNT) {
-				i = 0;
-				while (i < THREAD_CNT) {
-					pthread_join(tid[i++], NULL);
-					//TODO: free up the connection
-					i--;
-				}
-				i = 0;
-			}
+			//Add the connection to the Queue to be processed by the server Threads, but lock adding it and popping it from the queue.
+			pthread_mutex_lock(&tPoolLock);
+			putQueue(connectionId);
+			pthread_cond_signal(&tPoolCond);
+			pthread_mutex_unlock(&tPoolLock);
 
 		}
 	}
 
-	pthread_mutex_destroy(&lock);
+	pthread_mutex_destroy(&tPoolLock);
 
 	return 0;
 }
