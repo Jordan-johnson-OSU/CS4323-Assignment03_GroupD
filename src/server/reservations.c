@@ -207,13 +207,180 @@ void inquireTicket(int connectionFd) {
  */
 void modifyReservation(int connectionFd) {
 	printf("Modify Reservation");
+	char reservation_ID="" ;
+	char NewSeat="";
+	char NewDate="";
+	char NewnumberOfTravelers ="";
+	char resNumber[SMALL_BUFFER];
+	char fileName[SMALL_BUFFER];
+	char tmpBuffer[BUFFER];
+	char s[2] = " ";
+	char *token;
+	char *tmp;
+	FILE *fp1;
+	FILE *fp2;
+	DIR *d;
+	struct dirent *dir;
+	ssize_t r;
+	char *line = NULL;
+	size_t len = 0;
+	int flag = 0;
+	int tmpFlag = 0;
+	int count;
+	int cancelledSeats[TRAIN_ROWS * TRAIN_COLS];
+	int i;
+	int j;
 
 	char client_message[2000];
+
+	/* Check which res the costomer want to modify it */
 	char *server_response;
 	server_response = "What is the reservation number you would like to modify:\n";
 	send(connectionFd, server_response, strlen(server_response), 0);
 	recv(connectionFd, client_message, 2000, 0);
+
 	send(connectionFd, "continue", strlen("continue"), 0);
+
+	strcpy(reservation_ID, client_message);
+
+	/* check if the customer need to modify the seat */
+	server_response = "do you want to modify the seat:\n";
+	send(connectionFd, server_response, strlen(server_response), 0);
+	recv(connectionFd, client_message, 2000, 0);
+
+	if (strcmp(client_message, "yes") == 0) {
+		/* if yes requiest from the customer the new seat*/
+		server_response = "Please chose the new seat:\n";
+		send(connectionFd, server_response, strlen(server_response), 0);
+		recv(connectionFd, client_message, 2000, 0);
+		strcpy(NewSeat, client_message);
+	}
+
+	/* check if the customer need to modify the date */
+	server_response = "do you want to modify the date:\n";
+	send(connectionFd, server_response, strlen(server_response), 0);
+	recv(connectionFd, client_message, 2000, 0);
+
+	if (strcmp(client_message, "yes") == 0) {
+		/* if yes rrequest the new date*/
+		server_response = "Please chose the new date:\n";
+		send(connectionFd, server_response, strlen(server_response), 0);
+		recv(connectionFd, client_message, 2000, 0);
+		strcpy(NewDate, client_message);
+	}
+
+	/* check if the customer need to change the number of travelers */
+	server_response = "do you want to modify the number of travelers:\n";
+	send(connectionFd, server_response, strlen(server_response), 0);
+	recv(connectionFd, client_message, 2000, 0);
+
+	if (strcmp(client_message, "yes") == 0) {
+		/* if yes request the new number of travelers */
+		server_response = "Please chose the new number of travelers:\n";
+		send(connectionFd, server_response, strlen(server_response), 0);
+		recv(connectionFd, client_message, 2000, 0);
+		strcpy(NewnumberOfTravelers, client_message);
+	}
+
+	/* cancel the Old reservation */
+
+	resNumber = reservation_ID;
+
+	d = opendir(".");
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+
+			/* looking for the summary file in the folder */
+			if (strstr(dir->d_name, "Summary")) {
+				fp1 = fopen(dir->d_name, "r");
+				fp2 = fopen("temp.txt", "w");
+				while ((r = getline(&line, &len, fp1)) != -1) {
+
+					/* look for the reservation number at the selected line in summary file */
+					if (strstr(line, resNumber)) {
+						// update file
+						strcpy(tmpBuffer, line);
+
+						send(connectionFd, "cancelled", 10, 0);
+						flag = 1;
+					} else {
+						fprintf(fp2, "%s", line);
+					}
+				}
+				remove(dir->d_name);
+				rename("temp.txt", dir->d_name);
+				fclose(fp1);
+				fclose(fp2);
+				if (flag == 1) {
+					strcpy(fileName, dir->d_name);
+					tmp = strchr(fileName, 'S');
+					if (tmp) {
+						fileName[tmp - fileName] = '\0';
+						fp1 = fopen(fileName, "r");
+						fp2 = fopen("tmp.txt", "w");
+
+						token = strtok(tmpBuffer, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						if (strchr(token, '/') == NULL) {
+							token = strtok(NULL, s);
+						}
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						token = strtok(NULL, s);
+						count = atoi(token);
+						printf("count is %d\n", count);
+						r = getline(&line, &len, fp1);
+						printf("atoi is is %d\n", atoi(line));
+						fprintf(fp2, "%d\n", atoi(line) + count);
+						token = strtok(NULL, s);
+						i = 0;
+						while (token != NULL) {
+							cancelledSeats[i++] = atoi(token);
+							token = strtok(NULL, s);
+						}
+						i = 0;
+						while ((r = getline(&line, &len, fp1)) != -1) {
+
+							for (j = 0, tmpFlag = 0; j < count; j++) {
+								if (cancelledSeats[j] == i) {
+									printf("22\n");
+									fprintf(fp2, "=\n");
+									tmpFlag = 1;
+									break;
+								}
+							}
+							i++;
+							if (tmpFlag == 0)
+								fprintf(fp2, "%s", line);
+						}
+						fclose(fp1);
+						fclose(fp2);
+						remove(fileName);
+						rename("tmp.txt", fileName);
+					}
+					break;
+				}
+			}
+		}
+		if (flag == 0)
+			send(connectionFd, "not found", 10, 0);
+		closedir(d);
+	}
+
+
+	/* make new reservation*/
+
+	struct Reservation *res = malloc(sizeof(struct Reservation) + sizeof(struct Ticket) * NewnumberOfTravelers);
+	res->numTickets = NewnumberOfTravelers;
+	res->updateDate = NewDate;
+	res->serverId = 100 + rand() % (1000 - 100 + 1);
+
 }
 
 /**
@@ -338,6 +505,56 @@ void cancelReservation(int connectionFd) {
  */
 void writeSummary(struct Reservation *res, struct Train *t, int *selectedSeats) {
 	printf("Write Summary");
+	char *server_response[200];
+	char server_ID[10];
+	char reservation_Date[10];
+	char numberOfTicket[10];
+	char train_ID[10];
+	char Selected_Seat[10];
+	char toStr[10];
+	FILE *fp1;
+	struct dirent *dir;
+	DIR *d;
+
+ 	/* Convert all data from init to string using itoa function */
+	itoa(res->serverId, server_ID, 10);
+	reservation_Date = res->updateDate;
+	itoa(res->numTickets, numberOfTicket, 10);
+	itoa(t->id, train_ID, 10);
+	itoa(selectedSeats, Selected_Seat, 10);
+
+	/* concatenate all strings in one signl strings */
+
+	server_response = "Reservation id :";
+	strcat(server_response,server_ID);
+	strcat(server_response,"   ");
+	strcat(server_response,"Reservation date:");
+	strcat(server_response,reservation_Date);
+	strcat(server_response,"   ");
+	strcat(server_response,"train ID:");
+	strcat(server_response,train_ID);
+	strcat(server_response,"   ");
+	strcat(server_response,"number Of Trvelers:");
+	strcat(server_response,numberOfTicket);
+	strcat(server_response,"   ");
+	strcat(server_response,"Selected Seat:");
+	strcat(server_response,Selected_Seat);
+
+	/* look for summary file, then open it and add the new summary line*/
+	d = opendir(".");
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+			if (strstr(dir->d_name, "Summary")) {
+				fp1 = fopen(dir->d_name, "w");
+				fprintf(fp1, "%s", server_response);
+				break;
+			}
+		}
+	}
+
+	/* close file and the directory */
+	fclose(fp1);
+	closedir(d);
 }
 
 /**
@@ -345,4 +562,42 @@ void writeSummary(struct Reservation *res, struct Train *t, int *selectedSeats) 
  */
 void readSeats(struct Train *t, char *fileName) {
 	printf("Create Reservation");
+	FILE *fp1;
+	struct dirent *dir;
+	DIR *d;
+	ssize_t r;
+	char *line = NULL;
+	size_t len = 0;
+	char *ptr= NULL;
+	int i= 0;
+	int j= 0;
+	/* Look for seats file using the fileName and open it */
+	d = opendir(".");
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+			if (strstr(dir->d_name, fileName)) {
+				fp1 = fopen(dir->d_name, "r");
+				break;
+			}
+		}
+	}
+	if (fp1!=NULL)
+	{
+		/* read all lines and split each one using the strtok function*/
+		while((r = getline(&line, &len, fp1)) != -1)
+		{
+			ptr = strtok(line, " ");
+			while(ptr!=NULL)
+			{
+				/* read and set the status of each seat*/
+				t->seats[i][j].status=ptr;
+				i++;
+				ptr = strtok(NULL, " ");
+			}
+			j++;
+		}
+	}
+	/* close file and directory */
+	fclose(fp1);
+	closedir(d);
 }
