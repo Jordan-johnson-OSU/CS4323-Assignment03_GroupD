@@ -18,6 +18,8 @@
 #define BUFFER 1024
 #define SMALL_BUFFER 100
 
+#define SEM_xxx_NAME "/xxx"
+
 struct Customer {
 	int id;
 	char *name;

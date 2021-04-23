@@ -19,6 +19,8 @@
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
 #include <pthread.h>
+#include <semaphore.h>
+#include <sys/ipc.h>
 
 #include "serverHeader.h"
 
@@ -26,8 +28,9 @@
 #define THREAD_CNT 3
 #define SA struct sockaddr
 
-pthread_mutex_t tPoolLock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t tPoolCond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t tPoolLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t tPoolCond = PTHREAD_COND_INITIALIZER;
+
 
 /**
  * This is just a thread that is running the backend code to handle the client, but waiting for a new connection on the queue, and waiting until one is available to not take up all the CPU.
@@ -65,7 +68,6 @@ void* monitorThread(void *arg) {
  *
  */
 int main(int argc, char **argv) {
-
 	int socketId, connectionId = 0;
 	struct sockaddr_in saddress;
 
@@ -82,7 +84,7 @@ int main(int argc, char **argv) {
 	// Binding newly created socket
 	if (bind(socketId, (SA*) &saddress, sizeof(saddress)) < 0) {
 		printf("\tSocket Failed to bind.\n");
-		return 1;
+		return EXIT_FAILURE;
 	} else {
 		printf("\tSocket successful bind.\n");
 	}
@@ -90,14 +92,23 @@ int main(int argc, char **argv) {
 	// Now server is ready to listen and verification
 	if (listen(socketId, 5) < 0) {
 		printf("\tServer listening failed.\n");
-		return 1;
+		return EXIT_FAILURE;
 	} else {
 		printf("\tServer listening.\n");
 	}
 
 	if (pthread_mutex_init(&tPoolLock, NULL) != 0) {
 		printf("Mutex init has failed\n");
-		return 1;
+		return EXIT_FAILURE;
+	}
+
+	//Semaphore initialization
+	sem_unlink(SEM_xxx_NAME);
+
+	sem_t *semXXX = sem_open(SEM_xxx_NAME, O_CREAT, 0660, 0);
+	if(semXXX == SEM_FAILED) {
+		printf("\tSemaphore failed to open.");
+		return EXIT_FAILURE;
 	}
 
 	pthread_t tid[THREAD_CNT];
@@ -117,12 +128,14 @@ int main(int argc, char **argv) {
 
 			//Add the connection to the Queue to be processed by the server Threads, but lock adding it and popping it from the queue.
 			pthread_mutex_lock(&tPoolLock);
-			putQueue(connectionId);
+			putQueue(&connectionId);
 			pthread_cond_signal(&tPoolCond);
 			pthread_mutex_unlock(&tPoolLock);
 
 		}
 	}
+
+	sem_close(semXXX);
 
 	pthread_mutex_destroy(&tPoolLock);
 

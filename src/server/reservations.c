@@ -23,6 +23,9 @@
 
 #include "serverHeader.h"
 
+static pthread_mutex_t resLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t resCond = PTHREAD_COND_INITIALIZER;
+
 /**
  *
  */
@@ -48,7 +51,7 @@ void createReservation(int connectionFd) {
 	struct Train *train = malloc(sizeof(struct Train) + (sizeof(struct Seat) * TRAIN_ROWS * TRAIN_COLS));
 
 	//TODO: need to figure the dates out.
-	initTrain(train, "train_1234");
+	initTrain(train, "train_{date}.txt");
 	//Available tickets need to be synchronized across servers and threads.
 
 	//TODO: check if we have this many tickets available?
@@ -122,7 +125,7 @@ void createReservation(int connectionFd) {
 	}
 
 	//LOCK THE OTHER THREADS
-//	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&resLock);
 
 	//TODO: update the Train
 	train->availableSeats -= ticketsRequested;
@@ -150,7 +153,7 @@ void createReservation(int connectionFd) {
 	writeSummary(res, train, selectedSeats);
 	//send(connectionFd, {message about the reservation / reciept}, strlen("continue"), 0);
 
-//	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&resLock);
 }
 
 /**
@@ -207,10 +210,10 @@ void inquireTicket(int connectionFd) {
  */
 void modifyReservation(int connectionFd) {
 	printf("Modify Reservation");
-	char reservation_ID="" ;
-	char NewSeat="";
-	char NewDate="";
-	char NewnumberOfTravelers ="";
+	char *reservation_ID="" ;
+	char *NewSeat="";
+	char *NewDate="";
+	char *NewnumberOfTravelers ="";
 	char resNumber[SMALL_BUFFER];
 	char fileName[SMALL_BUFFER];
 	char tmpBuffer[BUFFER];
@@ -284,7 +287,7 @@ void modifyReservation(int connectionFd) {
 
 	/* cancel the Old reservation */
 
-	resNumber = reservation_ID;
+	strcpy(resNumber,reservation_ID);
 
 	d = opendir(".");
 	if (d) {
@@ -375,9 +378,10 @@ void modifyReservation(int connectionFd) {
 
 
 	/* make new reservation*/
+	int numtickets = atoi(NewnumberOfTravelers);
 
-	struct Reservation *res = malloc(sizeof(struct Reservation) + sizeof(struct Ticket) * NewnumberOfTravelers);
-	res->numTickets = NewnumberOfTravelers;
+	struct Reservation *res = malloc(sizeof(struct Reservation) + (sizeof(struct Ticket) * numtickets));
+	res->numTickets = numtickets;
 	res->updateDate = NewDate;
 	res->serverId = 100 + rand() % (1000 - 100 + 1);
 
@@ -517,15 +521,24 @@ void writeSummary(struct Reservation *res, struct Train *t, int *selectedSeats) 
 	DIR *d;
 
  	/* Convert all data from init to string using itoa function */
-	itoa(res->serverId, server_ID, 10);
-	reservation_Date = res->updateDate;
-	itoa(res->numTickets, numberOfTicket, 10);
-	itoa(t->id, train_ID, 10);
-	itoa(selectedSeats, Selected_Seat, 10);
+
+	strcpy(reservation_Date,res->updateDate);
+
+	snprintf(server_ID, "%d", &res->serverId);
+//	itoa(res->serverId, server_ID, 10);
+
+	snprintf(numberOfTicket, "%d", &res->numTickets);
+//	itoa(res->numTickets, numberOfTicket, 10);
+
+	snprintf(train_ID, "%d", &t->id);
+//	itoa(t->id, train_ID, 10);
+
+	snprintf(Selected_Seat, "%d", selectedSeats);
+//	itoa(selectedSeats, Selected_Seat, 10);
 
 	/* concatenate all strings in one signl strings */
 
-	server_response = "Reservation id :";
+	strcat(server_response,"Reservation id :");
 	strcat(server_response,server_ID);
 	strcat(server_response,"   ");
 	strcat(server_response,"Reservation date:");

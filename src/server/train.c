@@ -17,11 +17,14 @@
 
 #include "serverHeader.h"
 
+static pthread_mutex_t trainLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t trainCond = PTHREAD_COND_INITIALIZER;
+
 /**
  *
  */
 int initTrain(struct Train *train, char *nameFile) {
-
+	printf("initTrain");
 	FILE *file = fopen(nameFile, "r");
 
 	if (file == NULL) {
@@ -60,7 +63,7 @@ int initTrain(struct Train *train, char *nameFile) {
 
 	// close file
 	fclose(file);
-
+	printf("initTrain Finish");
 	return 0;
 }
 
@@ -68,8 +71,9 @@ int initTrain(struct Train *train, char *nameFile) {
  * TODO: We need a locking mechanism here.
  */
 int updateTrain(struct Train *train, char *nameFile) {
+	printf("updateTrain");
 	//TODO: Lock
-//	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&trainLock);
 
     FILE *trainFile = fopen(nameFile,"w+");
 
@@ -83,7 +87,7 @@ int updateTrain(struct Train *train, char *nameFile) {
     fclose(trainFile);
 
     //TODO: Unlock
-//    pthread_mutex_unlock(&lock);
-
+    pthread_mutex_unlock(&trainLock);
+    printf("updateTrain Finish");
 	return 0;
 }
