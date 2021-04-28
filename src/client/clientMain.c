@@ -25,6 +25,8 @@
  * 		argc - count of input arguments to your program.
  * 		argv - pointer to all the input arguments.
  *
+ * 		arg[1] - Port to start the server
+ *
  * Return:
  *		0 for Success.
  *
@@ -33,7 +35,7 @@ int main(int argc, char **argv) {
 	int i = 0;
 	pthread_t tid[51];
 	while (i < 1) {
-		if (pthread_create(&tid[i], NULL, clientThread, NULL) != 0)
+		if (pthread_create(&tid[i], NULL, clientThread, argv[1]) != 0)
 			printf("Failed to create thread\n");
 		i++;
 	}

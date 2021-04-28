@@ -1,12 +1,12 @@
 #Server Terminal
 gcc *.c -o server -Wall -l pthread
 
-./server
+./server 9090
 
 #Client Terminal
 gcc *.c -o client -Wall -l pthread
 
-./client
+./client 9090
 
 
 ############################

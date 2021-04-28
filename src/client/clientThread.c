@@ -48,7 +48,11 @@ void* clientThread(void *arg) {
 	// assign IP, PORT
 	saddress.sin_family = AF_INET;
 	saddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-	saddress.sin_port = htons(PORT);
+	if(arg != NULL){
+		saddress.sin_port = htons(atoi((char *)arg));
+	} else {
+		saddress.sin_port = htons(PORT);
+	}
 
 	// connect the client socket to server socket
 	if (connect(socketId, (SA*) &saddress, sizeof(saddress)) < 0) {

@@ -20,6 +20,7 @@
 #include <unistd.h> // for close
 #include <pthread.h>
 #include <dirent.h>
+#include <stdbool.h>
 
 #include "serverHeader.h"
 
@@ -151,6 +152,7 @@ void createReservation(int connectionFd) {
 
 	//TODO: Return the Reservation Data
 	writeSummary(res, train, selectedSeats);
+//	updateseats(t,"train",selectedSeats ,res->numTickets ,false );
 	//send(connectionFd, {message about the reservation / reciept}, strlen("continue"), 0);
 
 	pthread_mutex_unlock(&resLock);
@@ -384,6 +386,7 @@ void modifyReservation(int connectionFd) {
 	res->numTickets = numtickets;
 	res->updateDate = NewDate;
 	res->serverId = 100 + rand() % (1000 - 100 + 1);
+//	updateseats(t,"train",NewSeat ,res->numTickets ,false );
 
 }
 
@@ -502,6 +505,7 @@ void cancelReservation(int connectionFd) {
 			send(connectionFd, "not found", 10, 0);
 		closedir(d);
 	}
+//	updateseats(t,"train",cancelledSeats,count,true);
 }
 
 /**
@@ -614,3 +618,85 @@ void readSeats(struct Train *t, char *fileName) {
 	fclose(fp1);
 	closedir(d);
 }
+
+/**
+ *
+ */
+//void updateseats(struct Train *t, char *fileName, int selectedSeats, int numberofseat, bool ToBeCancled)
+//{
+//	FILE *fp1;
+//	struct dirent *dir;
+//	DIR *d;
+//	ssize_t r;
+//	char *line = NULL;
+//	size_t len = 0;
+//	char *ptr= NULL;
+//	int i= 0;
+//	int j= 0;
+//	int Rows[numberofseat];
+//	int Cloms[numberofseat];
+//	int Seats_[TRAIN_ROWS][TRAIN_COLS];
+//	char *seatToWrite[200];
+//	/* Look for seats file using the fileName and open it */
+//	d = opendir(".");
+//	if (d) {
+//		while ((dir = readdir(d)) != NULL) {
+//			if (strstr(dir->d_name, fileName)) {
+//				fp1 = fopen(dir->d_name, "w");
+//				break;
+//			}
+//		}
+//	}
+//
+//
+//	if (fp1!=NULL)
+//	{
+//		/* read all lines and split each one using the strtok function*/
+//		while((r = getline(&line, &len, fp1)) != -1)
+//		{
+//			ptr = strtok(line, " ");
+//			while(ptr!=NULL)
+//			{
+//				/* read and set the status of each seat and put it in the Seats matrix*/
+//				t->seats[i][j].status=ptr;
+//				Seats_[j][i]=ptr;
+//				i++;
+//				ptr = strtok(NULL, " ");
+//			}
+//			j++;
+//		}
+//	}
+//	/* look for the position of each selected seat in the train*/
+//	for( int k=0 ; k<numberofseat ; k++)
+//	{
+//		Rows=selectedSeats[k]/3;
+//		Cloms=selectedSeats[k]%3;
+//		if(ToBeCancled)
+//		{
+//			Seats_[Rows][Cloms]="O";
+//		}
+//		else
+//		{
+//			Seats_[Rows][Cloms]="X";
+//		}
+//	}
+//	/* close file and directory */
+//	fclose(fp1);
+//	remove(fileName);
+//	/* cleate the new train file with the new seaat position */
+//	fp1 = fopen(fileName, "w");
+//	for (i=0 ; i<TRAIN_ROWS ; i++)
+//	{
+//		seatToWrite="";
+//		for(j=0 ; j<TRAIN_COLS; j++)
+//		{
+//			strcat(seatToWrite,Seats_[i][j]);
+//			t->seats[i][j].status = Seats_[i][j];
+//		}
+//		strcat(seatToWrite,"\n");
+//	}
+//
+//	fprintf(fp1, "%s", seatToWrite);
+//	fclose(fp1);
+//	closedir(d);
+//}

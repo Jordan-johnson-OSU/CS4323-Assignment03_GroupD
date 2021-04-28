@@ -14,6 +14,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 #include "serverHeader.h"
 
@@ -25,11 +27,22 @@ static pthread_cond_t trainCond = PTHREAD_COND_INITIALIZER;
  */
 int initTrain(struct Train *train, char *nameFile) {
 	printf("initTrain");
-	FILE *file = fopen(nameFile, "r");
+	FILE *file = fopen(nameFile, "rw");
+	struct stat sb;
+
+	if(fstat(file, &sb) == -1){
+		perror("couldn't find file size");
+	}
 
 	if (file == NULL) {
 		perror("File is null");
 		exit(EXIT_FAILURE);
+	}
+
+	char *train_mmap = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file, 0);
+
+	for(int i=0; i< sb.st_size; i++){
+		printf("%c",train_mmap[i]);
 	}
 
 	char chunk[256];
@@ -68,12 +81,16 @@ int initTrain(struct Train *train, char *nameFile) {
 }
 
 /**
- * TODO: We need a locking mechanism here.
+ * TODO: Is there a way to check if the train was just updated by another client?
+ *
+ *
  */
 int updateTrain(struct Train *train, char *nameFile) {
 	printf("updateTrain");
 	//TODO: Lock
 	pthread_mutex_lock(&trainLock);
+
+	//TODO: Read and Check for new Reservations?
 
     FILE *trainFile = fopen(nameFile,"w+");
 

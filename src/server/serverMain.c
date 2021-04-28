@@ -12,20 +12,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/types.h>
 
 #include "serverHeader.h"
 
-#define PORT 9090
-#define THREAD_CNT 3
+
 #define SA struct sockaddr
 
 static pthread_mutex_t tPoolLock = PTHREAD_MUTEX_INITIALIZER;
@@ -37,8 +38,7 @@ static pthread_cond_t tPoolCond = PTHREAD_COND_INITIALIZER;
  *
  * Arguments:
  * 		arg - not needed (NULL)
- * 		argv - pointer to all the input arguments.
- *
+  *
  * Return:
  *		0 for Success.
  */
@@ -63,6 +63,9 @@ void* monitorThread(void *arg) {
  * 		argc - count of input arguments to your program.
  * 		argv - pointer to all the input arguments.
  *
+ * 		arg[1] - Port to start the server
+ * 		arg[2] - thread count for the server
+ *
  * Return:
  *		0 for Success.
  *
@@ -70,6 +73,9 @@ void* monitorThread(void *arg) {
 int main(int argc, char **argv) {
 	int socketId, connectionId = 0;
 	struct sockaddr_in saddress;
+
+	int PORT = 9090;
+	int THREAD_CNT = 3;
 
 	// create socket
 	socketId = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -79,7 +85,12 @@ int main(int argc, char **argv) {
 	// assign IP, PORT
 	saddress.sin_family = AF_INET;
 	saddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	saddress.sin_port = htons(PORT);
+	if( argc >= 2 ) {
+		saddress.sin_port = htons(atoi(argv[1]));
+	} else {
+		saddress.sin_port = htons(PORT);
+	}
+
 
 	// Binding newly created socket
 	if (bind(socketId, (SA*) &saddress, sizeof(saddress)) < 0) {
@@ -102,6 +113,15 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	//TODO: Shared Memory
+	//shmget, shmat, shmdt, shmctl, ftok
+	key_t key;
+	key = ftok("servershare.txt", 0);
+	int smloc = shmget(key, 4096, 0644 | IPC_CREAT);
+	int newloc = shmat(smloc, NULL, 0);
+	//TODO: when to destroy the memory block?
+
+
 	//Semaphore initialization
 	sem_unlink(SEM_xxx_NAME);
 
@@ -109,6 +129,10 @@ int main(int argc, char **argv) {
 	if(semXXX == SEM_FAILED) {
 		printf("\tSemaphore failed to open.");
 		return EXIT_FAILURE;
+	}
+
+	if( argc >= 3 ) {
+		THREAD_CNT = atoi(argv[2]);
 	}
 
 	pthread_t tid[THREAD_CNT];
