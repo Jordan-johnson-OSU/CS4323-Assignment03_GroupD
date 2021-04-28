@@ -1,5 +1,5 @@
 #Server Terminal
-gcc *.c -o server -Wall -l pthread
+gcc *.c -o server -lrt -Wall -l pthread
 
 ./server 9090
 

@@ -25,7 +25,7 @@
 #include "serverHeader.h"
 
 static pthread_mutex_t resLock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t resCond = PTHREAD_COND_INITIALIZER;
+//static pthread_cond_t resCond = PTHREAD_COND_INITIALIZER;
 
 /**
  *

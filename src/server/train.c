@@ -16,33 +16,52 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/ipc.h>
 
 #include "serverHeader.h"
 
 static pthread_mutex_t trainLock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t trainCond = PTHREAD_COND_INITIALIZER;
+//static pthread_cond_t trainCond = PTHREAD_COND_INITIALIZER;
 
 /**
  *
  */
 int initTrain(struct Train *train, char *nameFile) {
-	printf("initTrain");
-	FILE *file = fopen(nameFile, "rw");
+	printf("initTrain\n");
+
+	//TODO: Shared Memory
+//	key_t key;
+//	key = ftok(nameFile, 0);
+
+	const char *name = nameFile;
+	int smloc = shm_open(name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	ftruncate(smloc, 4096);
+
+	int fd = open(nameFile, O_RDWR, S_IRUSR | S_IWUSR);
+
 	struct stat sb;
 
-	if(fstat(file, &sb) == -1){
+	if (fstat(fd, &sb) == -1) {
 		perror("couldn't find file size");
 	}
+
+	void *train_mmap = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+	for (int i = 0; i < sb.st_size; i++) {
+		printf("%c", ((char*) train_mmap)[i]);
+	}
+
+	printf("\n");
+
+	//TODO: when to destroy the memory block?
+
+	FILE *file = fopen(nameFile, "rw");
 
 	if (file == NULL) {
 		perror("File is null");
 		exit(EXIT_FAILURE);
-	}
-
-	char *train_mmap = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file, 0);
-
-	for(int i=0; i< sb.st_size; i++){
-		printf("%c",train_mmap[i]);
 	}
 
 	char chunk[256];
@@ -59,7 +78,7 @@ int initTrain(struct Train *train, char *nameFile) {
 	fgetc(file);
 	train->availableSeats = atoi(line);
 
-	struct Seat seats[TRAIN_ROWS][TRAIN_COLS];// = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
+	struct Seat seats[TRAIN_ROWS][TRAIN_COLS]; // = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
 
 	int i = 0;
 	for (i = 0; i < TRAIN_ROWS; i++) {
@@ -76,7 +95,7 @@ int initTrain(struct Train *train, char *nameFile) {
 
 	// close file
 	fclose(file);
-	printf("initTrain Finish");
+	printf("initTrain Finish\n");
 	return 0;
 }
 
@@ -92,19 +111,20 @@ int updateTrain(struct Train *train, char *nameFile) {
 
 	//TODO: Read and Check for new Reservations?
 
-    FILE *trainFile = fopen(nameFile,"w+");
+	FILE *trainFile = fopen(nameFile, "w+");
 
-    fprintf(trainFile, "%d\n", train->availableSeats);
+	fprintf(trainFile, "%d\n", train->availableSeats);
 
-    int i;
-    for(i = 0; i < 20; i++) {
-    	fprintf(trainFile, "%s %s %s %s\n", train->seats[i][1].status, train->seats[i][2].status, train->seats[i][3].status, train->seats[i][4].status );
-    }
+	int i;
+	for (i = 0; i < 20; i++) {
+		fprintf(trainFile, "%s %s %s %s\n", train->seats[i][1].status, train->seats[i][2].status,
+				train->seats[i][3].status, train->seats[i][4].status);
+	}
 
-    fclose(trainFile);
+	fclose(trainFile);
 
-    //TODO: Unlock
-    pthread_mutex_unlock(&trainLock);
-    printf("updateTrain Finish");
+	//TODO: Unlock
+	pthread_mutex_unlock(&trainLock);
+	printf("updateTrain Finish");
 	return 0;
 }

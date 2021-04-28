@@ -18,7 +18,8 @@
 #define BUFFER 1024
 #define SMALL_BUFFER 100
 
-#define SEM_xxx_NAME "/xxx"
+#define SEM_TRAIN_READER "/trainread"
+#define SEM_TRAIN_WRITER "/trainwrite"
 
 struct Customer {
 	int id;

@@ -21,24 +21,21 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/types.h>
 
 #include "serverHeader.h"
-
 
 #define SA struct sockaddr
 
 static pthread_mutex_t tPoolLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t tPoolCond = PTHREAD_COND_INITIALIZER;
 
-
 /**
  * This is just a thread that is running the backend code to handle the client, but waiting for a new connection on the queue, and waiting until one is available to not take up all the CPU.
  *
  * Arguments:
  * 		arg - not needed (NULL)
-  *
+ *
  * Return:
  *		0 for Success.
  */
@@ -85,12 +82,11 @@ int main(int argc, char **argv) {
 	// assign IP, PORT
 	saddress.sin_family = AF_INET;
 	saddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	if( argc >= 2 ) {
+	if (argc >= 2) {
 		saddress.sin_port = htons(atoi(argv[1]));
 	} else {
 		saddress.sin_port = htons(PORT);
 	}
-
 
 	// Binding newly created socket
 	if (bind(socketId, (SA*) &saddress, sizeof(saddress)) < 0) {
@@ -113,25 +109,23 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	//TODO: Shared Memory
-	//shmget, shmat, shmdt, shmctl, ftok
-	key_t key;
-	key = ftok("servershare.txt", 0);
-	int smloc = shmget(key, 4096, 0644 | IPC_CREAT);
-	int newloc = shmat(smloc, NULL, 0);
-	//TODO: when to destroy the memory block?
-
-
 	//Semaphore initialization
-	sem_unlink(SEM_xxx_NAME);
+	sem_unlink(SEM_TRAIN_READER);
+	sem_unlink(SEM_TRAIN_WRITER);
 
-	sem_t *semXXX = sem_open(SEM_xxx_NAME, O_CREAT, 0660, 0);
-	if(semXXX == SEM_FAILED) {
+	sem_t *semTReader = sem_open(SEM_TRAIN_READER, O_CREAT, 0660, 1);
+	if (semTReader == SEM_FAILED) {
 		printf("\tSemaphore failed to open.");
 		return EXIT_FAILURE;
 	}
 
-	if( argc >= 3 ) {
+	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
+	if (semTWriter == SEM_FAILED) {
+		printf("\tSemaphore failed to open.");
+		return EXIT_FAILURE;
+	}
+
+	if (argc >= 3) {
 		THREAD_CNT = atoi(argv[2]);
 	}
 
@@ -159,7 +153,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	sem_close(semXXX);
+	sem_close(SEM_TRAIN_READER);
+	sem_close(SEM_TRAIN_WRITER);
 
 	pthread_mutex_destroy(&tPoolLock);
 
