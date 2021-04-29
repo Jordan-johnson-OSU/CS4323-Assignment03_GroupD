@@ -26,6 +26,8 @@
 
 static pthread_mutex_t resLock = PTHREAD_MUTEX_INITIALIZER;
 //static pthread_cond_t resCond = PTHREAD_COND_INITIALIZER;
+static int Customer_ID = 0;
+static int numberOfSelected = 0;
 
 /**
  *
@@ -77,41 +79,49 @@ void createReservation(int connectionFd) {
 		server_response = "Please input the information for the Customer.\n\tFull Name:";
 		send(connectionFd, server_response, strlen(server_response), 0);
 		recv(connectionFd, client_message, 2000, 0);
-		strcpy(customers[t].name, client_message);
+		printf("Client(%d) - %s\n", connectionFd, client_message);
+		strcpy(&customers[t].name, client_message);
+		bzero(&client_message, sizeof(client_message));
 		send(connectionFd, "continue", strlen("continue"), 0);
 
 		server_response = "\n\tDate of Birth:";
 		send(connectionFd, server_response, strlen(server_response), 0);
 		recv(connectionFd, client_message, 2000, 0);
-		strcpy(customers[t].dateOfBirth, client_message);
+		printf("Client(%d) - %s\n", connectionFd, client_message);
+		strcpy(&customers[t].dateOfBirth, client_message);
+		bzero(&client_message, sizeof(client_message));
 		send(connectionFd, "continue", strlen("continue"), 0);
 
 		server_response = "\n\tGender:";
 		send(connectionFd, server_response, strlen(server_response), 0);
 		recv(connectionFd, client_message, 2000, 0);
-		strcpy(customers[t].gender, client_message);
+		printf("Client(%d) - %s\n", connectionFd, client_message);
+		strcpy(&customers[t].gender, client_message);
+		bzero(&client_message, sizeof(client_message));
 		send(connectionFd, "continue", strlen("continue"), 0);
 
 		server_response = "\n\tGovernment ID Number:";
 		send(connectionFd, server_response, strlen(server_response), 0);
 		recv(connectionFd, client_message, 2000, 0);
-		strcpy(customers[t].governmentId, client_message);
+		printf("Client(%d) - %s\n", connectionFd, client_message);
+		strcpy(&customers[t].governmentId, client_message);
+		bzero(&client_message, sizeof(client_message));
 		send(connectionFd, "continue", strlen("continue"), 0);
 	}
 
-	//TODO: need to probably ask about what seat they want?  Can't pass struct, only strings.
-	for (i = 0; i < ticketsRequested; i++) {
-		train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].status = "X";
-//			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].serverId = res.serverId;
-//			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].ticketId = res.ticketId;
-	}
-
-	for (i = 0; i < TRAIN_ROWS; i++) {
-		for (int j = 0; j < TRAIN_COLS; j++) {
-			printf("%s\t", train->seats[i][j].status);
-		}
-		printf("\n");
-	}
+//	//TODO: need to probably ask about what seat they want?  Can't pass struct, only strings.
+//	for (i = 0; i < ticketsRequested; i++) {
+//		train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].status = "X";
+////			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].serverId = res.serverId;
+////			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].ticketId = res.ticketId;
+//	}
+//
+//	for (i = 0; i < TRAIN_ROWS; i++) {
+//		for (int j = 0; j < TRAIN_COLS; j++) {
+//			printf("%s\t", train->seats[i][j].status);
+//		}
+//		printf("\n");
+//	}
 
 	server_response = "Do you want to make the reservation (yes/no):\n";
 	send(connectionFd, server_response, strlen(server_response), 0);
@@ -125,8 +135,13 @@ void createReservation(int connectionFd) {
 		return;
 	}
 
+	bzero(&client_message, sizeof(client_message));
+
+	printf("entering critical section");
 	//LOCK THE OTHER THREADS
 	pthread_mutex_lock(&resLock);
+
+	updateTrain(train, "train_{date}.txt");
 
 	//TODO: update the Train
 	train->availableSeats -= ticketsRequested;
@@ -151,10 +166,19 @@ void createReservation(int connectionFd) {
 	}
 
 	//TODO: Return the Reservation Data
-	writeSummary(res, train, selectedSeats);
-//	updateseats(t,"train",selectedSeats ,res->numTickets ,false );
-	//send(connectionFd, {message about the reservation / reciept}, strlen("continue"), 0);
+	while (numberOfSelected >res->numTickets)
+	{
+		/* waiting to release the file from an other write operation*/
+	}
 
+	numberOfSelected = res->numTickets;
+	Customer_ID = customers[t].id;
+	writeSummary(res, train, selectedSeats);
+//	updateseats(train,"train",selectedSeats ,res->numTickets ,false );
+	updateTrain(train, "train_{date}.txt");
+	//send(connectionFd, {message about the reservation / reciept}, strlen("continue"), 0);
+	numberOfSelected = 0;
+	Customer_ID = 0;
 	pthread_mutex_unlock(&resLock);
 }
 
@@ -618,11 +642,11 @@ void readSeats(struct Train *t, char *fileName) {
 	fclose(fp1);
 	closedir(d);
 }
-
-/**
- *
- */
-//void updateseats(struct Train *t, char *fileName, int selectedSeats, int numberofseat, bool ToBeCancled)
+//
+///**
+// *
+// */
+//void updateseats(struct Train *t, char *fileName, int *selectedSeats, int *numberofseat, bool ToBeCancled)
 //{
 //	FILE *fp1;
 //	struct dirent *dir;
@@ -635,7 +659,7 @@ void readSeats(struct Train *t, char *fileName) {
 //	int j= 0;
 //	int Rows[numberofseat];
 //	int Cloms[numberofseat];
-//	int Seats_[TRAIN_ROWS][TRAIN_COLS];
+//	char Seats_[TRAIN_ROWS][TRAIN_COLS];
 //	char *seatToWrite[200];
 //	/* Look for seats file using the fileName and open it */
 //	d = opendir(".");

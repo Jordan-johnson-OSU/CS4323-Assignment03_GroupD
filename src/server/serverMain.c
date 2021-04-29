@@ -119,11 +119,18 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+
 	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
 	if (semTWriter == SEM_FAILED) {
 		printf("\tSemaphore failed to open.");
 		return EXIT_FAILURE;
 	}
+
+	int val;
+	sem_getvalue(semTReader, &val);
+	printf("Train Reader: %d\n", val);
+	sem_getvalue(semTWriter, &val);
+	printf("Train Writer: %d\n", val);
 
 	if (argc >= 3) {
 		THREAD_CNT = atoi(argv[2]);
@@ -153,8 +160,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	sem_close(SEM_TRAIN_READER);
-	sem_close(SEM_TRAIN_WRITER);
+	sem_close(semTReader);
+	sem_close(semTWriter);
 
 	pthread_mutex_destroy(&tPoolLock);
 

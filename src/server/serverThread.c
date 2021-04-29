@@ -42,12 +42,16 @@ void serverThread(void *arg) {
 
 		printf("Client(%d) Option %s selected\n", newSocket, client_message);
 
+		bzero(&server_response, sizeof(server_response));
+
 		if (strcmp(client_message, "5") == 0) {
 			server_response = "exit";
 			send(newSocket, server_response, strlen(server_response), 0);
 			//TODO: free up this thread in the thread pool.
 			break;
 		}
+
+		bzero(&server_response, sizeof(server_response));
 
 		server_response = "continue";
 		send(newSocket, server_response, strlen(server_response), 0);
@@ -69,6 +73,7 @@ void serverThread(void *arg) {
 
 			cancelReservation(newSocket);
 		}
+		bzero(&client_message, sizeof(client_message));
 	}
 
 	printf("Exit socketThread \n");

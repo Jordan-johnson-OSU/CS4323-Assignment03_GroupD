@@ -21,8 +21,6 @@
 #define SEM_TRAIN_READER "/trainread"
 #define SEM_TRAIN_WRITER "/trainwrite"
 
-#define SHM_TRAIN "/trainSHM"
-
 struct Customer {
 	int id;
 	char *name;
