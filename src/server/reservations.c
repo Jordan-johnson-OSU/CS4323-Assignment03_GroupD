@@ -25,9 +25,6 @@
 #include "serverHeader.h"
 
 static pthread_mutex_t resLock = PTHREAD_MUTEX_INITIALIZER;
-//static pthread_cond_t resCond = PTHREAD_COND_INITIALIZER;
-static int Customer_ID = 0;
-static int numberOfSelected = 0;
 
 /**
  *
@@ -36,9 +33,8 @@ void createReservation(int connectionFd) {
 	printf("Create Reservation");
 	char client_message[2000];
 	char *server_response;
-	int i;
-	int selectedSeats[TRAIN_ROWS * TRAIN_COLS];
 
+	//Ask the client for input on when they want to travel.
 	server_response =
 			"Please choose which day you would like to make a reservation (1-2): \n\t1. Today.\n\t2. Tomorrow.\n";
 	send(connectionFd, server_response, strlen(server_response), 0);
@@ -50,32 +46,41 @@ void createReservation(int connectionFd) {
 	server_response = "continue";
 	send(connectionFd, server_response, strlen(server_response), 0);
 
-	//TODO: go find if we have a file or make it?
 	struct Train *train = malloc(sizeof(struct Train) + (sizeof(struct Seat) * TRAIN_ROWS * TRAIN_COLS));
 
-	//TODO: need to figure the dates out.
-	initTrain(train, "train_{date}.txt");
+	//Assumption: when a train is closed and runs, it swaps 2 to 1 and empties 2.  Thus always train_1 and train_2.
+	char trainFile[12];
+	snprintf(trainFile, 12, "train_%d.txt", atoi(dateRequested));
+	initTrain(train, trainFile);
+
 	//Available tickets need to be synchronized across servers and threads.
 
-	//TODO: check if we have this many tickets available?
+	//check if we have this many tickets available?
+	int ticketsRequested = 0;
 
-	//Build the Customer / Ticket Records
-	server_response = "How many tickets do you want for this reservation (1-10):\n";
-	send(connectionFd, server_response, strlen(server_response), 0);
-	recv(connectionFd, client_message, 2000, 0);
-	send(connectionFd, "continue", strlen("continue"), 0);
+	while (1) {
+		//Build the Customer / Ticket Records
+		server_response = "How many tickets do you want for this reservation (1-10):\n";
+//		strcat(server_response,train->availableSeats);
+//		strcat(server_response,"):\n");
+		send(connectionFd, server_response, strlen(server_response), 0);
+		recv(connectionFd, client_message, 2000, 0);
+		send(connectionFd, "continue", strlen("continue"), 0);
 
-	int ticketsRequested = atoi(client_message);
+		ticketsRequested = atoi(client_message);
+		bzero(&client_message, sizeof(client_message));
+		printf("Client(%d) - %d tickets\n", connectionFd, ticketsRequested);
+		//Error checking to make sure that we have entered a number within the available seats.
+		if (ticketsRequested <= train->availableSeats) {
+			break;
+		}
+	}
 
-	printf("Client(%d) - %d tickets\n", connectionFd, ticketsRequested);
-
-	//TODO: check if we have this many tickets available?
+	//Build out the customer based on client input.
 	struct Customer *customers = malloc(sizeof(struct Customer) * ticketsRequested);
 
 	int t = 0;
 	for (t = 0; t < ticketsRequested; t++) {
-		//TODO: set Id
-
 		server_response = "Please input the information for the Customer.\n\tFull Name:";
 		send(connectionFd, server_response, strlen(server_response), 0);
 		recv(connectionFd, client_message, 2000, 0);
@@ -109,20 +114,6 @@ void createReservation(int connectionFd) {
 		send(connectionFd, "continue", strlen("continue"), 0);
 	}
 
-//	//TODO: need to probably ask about what seat they want?  Can't pass struct, only strings.
-//	for (i = 0; i < ticketsRequested; i++) {
-//		train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].status = "X";
-////			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].serverId = res.serverId;
-////			train->seats[selectedSeats[i] / TRAIN_COLS][selectedSeats[i] % TRAIN_COLS].ticketId = res.ticketId;
-//	}
-//
-//	for (i = 0; i < TRAIN_ROWS; i++) {
-//		for (int j = 0; j < TRAIN_COLS; j++) {
-//			printf("%s\t", train->seats[i][j].status);
-//		}
-//		printf("\n");
-//	}
-
 	server_response = "Do you want to make the reservation (yes/no):\n";
 	send(connectionFd, server_response, strlen(server_response), 0);
 	recv(connectionFd, client_message, 2000, 0);
@@ -137,49 +128,76 @@ void createReservation(int connectionFd) {
 
 	bzero(&client_message, sizeof(client_message));
 
-	printf("entering critical section");
-	//LOCK THE OTHER THREADS
-	pthread_mutex_lock(&resLock);
+	printf("\tReservation.c - entering critical section\n");
 
-	updateTrain(train, "train_{date}.txt");
-
-	//TODO: update the Train
+	//update the Train
 	train->availableSeats -= ticketsRequested;
 
-	//TODO: Create the Reservation File
+	// Create the Reservation File
 	struct Reservation *res = malloc(sizeof(struct Reservation) + sizeof(struct Ticket) * ticketsRequested);
 	res->numTickets = ticketsRequested;
 	res->updateDate = dateRequested;
-	res->serverId = 100 + rand() % (1000 - 100 + 1);
-//	res->number = ???;
+	res->serverId = 100 + rand() % (1000 - 100 + 1); //TODO: get this from the Server Main
+	res->number = 10000 + rand() % (100000 - 10000 + 1);
 
-//TODO: Create Ticket Records.
+	while (1) {
+		//LOCK THE OTHER THREADS
+//		pthread_mutex_lock(&resLock);
+		struct Ticket *t = malloc(sizeof(struct Ticket) * ticketsRequested + sizeof(struct Customer));
+		//Create some Tickets!!!!
+		for (int i = 0; i < ticketsRequested; i++) {
+			printf("Ticket[%d]\n",i);
+			//Assumption: Pick the first available seats.
+			for (int r = 0; r < TRAIN_ROWS; r++) {
+				int brekcondition = 0;
+				for (int j = 0; j < TRAIN_COLS; j++) {
+					char *status = train->seats[r][j].status;
+					printf("Seat[%d][%d] = %s\n",r,j,status);
+					//This is the first empty seat.
+					if (strcmp(status, "O") == 0) {
 
-	for (i = 0; i < ticketsRequested; i++) {
-		struct Ticket *t = malloc(sizeof(struct Ticket) + sizeof(struct Customer));
-		//TODO: we should probably get this from the ticket file?
-		t[i].id = 10000 + rand() % (100000 - 10000 + 1);
-		t[i].customer = customers[i];
-		t[i].seatNumber = 2; //TODO: How to calc this?
-		t[i].travelDate = dateRequested;
-		t[i].updateDate = "create";
+						//Update the Train
+						train->seats[r][j].status = "X";
+
+						//Update the ticket
+//						t[i].id = 10000 + rand() % (100000 - 10000 + 1);
+						t[i].customer = customers[i];
+						t[i].seatNumber = (r * TRAIN_COLS) + (j + 1);
+						t[i].travelDate = dateRequested;
+						t[i].updateDate = "create";
+
+						printf("Ticket Created.\n");
+						//Break the loops.
+//						r = TRAIN_ROWS;
+						brekcondition = 1;
+						break;
+					}
+				}
+				if(brekcondition == 1){
+					break;
+				}
+			}
+		}
+
+		//Link the reservation and tickets.
+		res->tickets = t;
+
+		int updated = updateTrain(train, trainFile);
+
+		if (updated == 0) {
+			//Release the lock so others can start updating the train file.
+//			pthread_mutex_unlock(&resLock);
+
+			//Write the summary file and send a message back to the client.
+//			writeSummary(res, train);
+			send(connectionFd, "Workd!", strlen("Workd!"), 0);
+			break;
+		} else {
+			//send(connectionFd, "Error please try again.", strlen("Error please try again."), 0);
+			//TODO: need a condition here.
+			printf("Out of synch, trying again.");
+		}
 	}
-
-	//TODO: Return the Reservation Data
-	while (numberOfSelected >res->numTickets)
-	{
-		/* waiting to release the file from an other write operation*/
-	}
-
-	numberOfSelected = res->numTickets;
-	Customer_ID = customers[t].id;
-	writeSummary(res, train, selectedSeats);
-//	updateseats(train,"train",selectedSeats ,res->numTickets ,false );
-	updateTrain(train, "train_{date}.txt");
-	//send(connectionFd, {message about the reservation / reciept}, strlen("continue"), 0);
-	numberOfSelected = 0;
-	Customer_ID = 0;
-	pthread_mutex_unlock(&resLock);
 }
 
 /**
@@ -236,10 +254,10 @@ void inquireTicket(int connectionFd) {
  */
 void modifyReservation(int connectionFd) {
 	printf("Modify Reservation");
-	char *reservation_ID="" ;
-	char *NewSeat="";
-	char *NewDate="";
-	char *NewnumberOfTravelers ="";
+	char *reservation_ID = "";
+	char *NewSeat = "";
+	char *NewDate = "";
+	char *NewnumberOfTravelers = "";
 	char resNumber[SMALL_BUFFER];
 	char fileName[SMALL_BUFFER];
 	char tmpBuffer[BUFFER];
@@ -313,7 +331,7 @@ void modifyReservation(int connectionFd) {
 
 	/* cancel the Old reservation */
 
-	strcpy(resNumber,reservation_ID);
+	strcpy(resNumber, reservation_ID);
 
 	d = opendir(".");
 	if (d) {
@@ -401,7 +419,6 @@ void modifyReservation(int connectionFd) {
 			send(connectionFd, "not found", 10, 0);
 		closedir(d);
 	}
-
 
 	/* make new reservation*/
 	int numtickets = atoi(NewnumberOfTravelers);
@@ -535,51 +552,51 @@ void cancelReservation(int connectionFd) {
 /**
  *
  */
-void writeSummary(struct Reservation *res, struct Train *t, int *selectedSeats) {
+void writeSummary(struct Reservation *res, struct Train *t) {
 	printf("Write Summary");
-	char *server_response[200];
+	char server_response[BUFFER];
 	char server_ID[10];
 	char reservation_Date[10];
 	char numberOfTicket[10];
 	char train_ID[10];
-	char Selected_Seat[10];
-	char toStr[10];
+//	char Selected_Seat[10];
+//	char toStr[10];
 	FILE *fp1;
 	struct dirent *dir;
 	DIR *d;
 
- 	/* Convert all data from init to string using itoa function */
+	/* Convert all data from init to string using itoa function */
 
-	strcpy(reservation_Date,res->updateDate);
+	strcpy(reservation_Date, res->updateDate);
 
-	snprintf(server_ID, "%d", &res->serverId);
+	snprintf(server_ID, sizeof(res->serverId) + 1, "%d", res->serverId);
 //	itoa(res->serverId, server_ID, 10);
 
-	snprintf(numberOfTicket, "%d", &res->numTickets);
+	snprintf(numberOfTicket, sizeof(res->numTickets) + 1, "%d", res->numTickets);
 //	itoa(res->numTickets, numberOfTicket, 10);
 
-	snprintf(train_ID, "%d", &t->id);
+	snprintf(train_ID, sizeof(t->id) + 1, "%d", t->id);
 //	itoa(t->id, train_ID, 10);
 
-	snprintf(Selected_Seat, "%d", selectedSeats);
+//	snprintf(Selected_Seat, sizeof(&selectedSeats) + 1, "%d", &selectedSeats);
 //	itoa(selectedSeats, Selected_Seat, 10);
 
 	/* concatenate all strings in one signl strings */
 
-	strcat(server_response,"Reservation id :");
-	strcat(server_response,server_ID);
-	strcat(server_response,"   ");
-	strcat(server_response,"Reservation date:");
-	strcat(server_response,reservation_Date);
-	strcat(server_response,"   ");
-	strcat(server_response,"train ID:");
-	strcat(server_response,train_ID);
-	strcat(server_response,"   ");
-	strcat(server_response,"number Of Trvelers:");
-	strcat(server_response,numberOfTicket);
-	strcat(server_response,"   ");
-	strcat(server_response,"Selected Seat:");
-	strcat(server_response,Selected_Seat);
+	strcat(server_response, "Reservation id :");
+	strcat(server_response, server_ID);
+	strcat(server_response, "   ");
+	strcat(server_response, "Reservation date:");
+	strcat(server_response, reservation_Date);
+	strcat(server_response, "   ");
+	strcat(server_response, "train ID:");
+	strcat(server_response, train_ID);
+	strcat(server_response, "   ");
+	strcat(server_response, "number Of Travelers:");
+	strcat(server_response, numberOfTicket);
+	strcat(server_response, "   ");
+//	strcat(server_response, "Selected Seat:");
+//	strcat(server_response, Selected_Seat);
 
 	/* look for summary file, then open it and add the new summary line*/
 	d = opendir(".");
@@ -609,9 +626,9 @@ void readSeats(struct Train *t, char *fileName) {
 	ssize_t r;
 	char *line = NULL;
 	size_t len = 0;
-	char *ptr= NULL;
-	int i= 0;
-	int j= 0;
+	char *ptr = NULL;
+	int i = 0;
+	int j = 0;
 	/* Look for seats file using the fileName and open it */
 	d = opendir(".");
 	if (d) {
@@ -622,16 +639,13 @@ void readSeats(struct Train *t, char *fileName) {
 			}
 		}
 	}
-	if (fp1!=NULL)
-	{
+	if (fp1 != NULL) {
 		/* read all lines and split each one using the strtok function*/
-		while((r = getline(&line, &len, fp1)) != -1)
-		{
+		while ((r = getline(&line, &len, fp1)) != -1) {
 			ptr = strtok(line, " ");
-			while(ptr!=NULL)
-			{
+			while (ptr != NULL) {
 				/* read and set the status of each seat*/
-				t->seats[i][j].status=ptr;
+				t->seats[i][j].status = ptr;
 				i++;
 				ptr = strtok(NULL, " ");
 			}

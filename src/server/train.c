@@ -28,7 +28,7 @@
  *
  */
 int initTrain(struct Train *train, char *nameFile) {
-	printf("initTrain\n");
+	printf("initTrain - |%s|\n", nameFile);
 
 	//TODO: Load the File into shared Memory Shared Memory
 //	const char *name = nameFile;
@@ -61,41 +61,40 @@ int initTrain(struct Train *train, char *nameFile) {
 		printf("%c", ((char*) train_mmap)[i]);
 	}
 
-	//Copy the mmap file to the shared memory.
+	//TODO: how do we use the shared memory instead of just reading the file?
+//	Copy the mmap file to the shared memory.
 //	memcpy(smloc, train_mmap, sb.st_size);
 
 	printf("\n");
 
 	close(fd);
 
-	struct Seat seats[TRAIN_ROWS][TRAIN_COLS]; // = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
+//	struct Seat seats[TRAIN_ROWS][TRAIN_COLS]; // = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
 
-	int i = 0;
-//	for (i = 0; i < sb.st_size; i++) {
+
+//	for (int i = 0; i < sb.st_size; i++) {
 //		//pull new line from each file
-//		seats[i][1].status = ((char*) train_mmap)[i];
+//		train->seats[i][1].status = ((char*) train_mmap)[i];
 //		i++;
 //		i++;
-//		seats[i][2].status = ((char*) train_mmap)[i];
+//		train->seats[i][2].status = ((char*) train_mmap)[i];
 //		i++;
 //		i++;
-//		seats[i][3].status = ((char*) train_mmap)[i];
+//		train->seats[i][3].status = ((char*) train_mmap)[i];
 //		i++;
 //		i++;
-//		seats[i][4].status = ((char*) train_mmap)[i];
+//		train->seats[i][4].status = ((char*) train_mmap)[i];
 //		i++;
 //		i++;
 //	}
 //
 //	train->seats = seats;
-	printf("printing train seats\n");
+//	printf("printing train seats\n");
 //	for (i = 0; i < TRAIN_ROWS; i++) {
 //		printf("%s %s %s %s\n",train->seats[i][1].status,train->seats[i][2].status,train->seats[i][3].status,train->seats[i][4].status);
 //	}
 
-	//TODO: how do we use the shared memory instead of just reading the file?
-
-	FILE *file = fopen(nameFile, "rw");
+	FILE *file = fopen(nameFile, "r");
 
 	if (file == NULL) {
 		perror("File is null");
@@ -114,22 +113,23 @@ int initTrain(struct Train *train, char *nameFile) {
 	//pull new line from each file
 	fscanf(file, "%[^\n]", line);
 	fgetc(file);
+
 	train->availableSeats = atoi(line);
 
-//	struct Seat seats[TRAIN_ROWS][TRAIN_COLS]; // = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
-
-//	int i = 0;
-	for (i = 0; i <= TRAIN_ROWS; i++) {
+	for (int i = 0; i < TRAIN_ROWS; i++) {
+//		printf("Loading Seat: %d", i);
 		//pull new line from each file
 		fscanf(file, "%[^\n]", line);
 		fgetc(file);
-		seats[i][1].status = strtok(line, " ");
-		seats[i][2].status = strtok(NULL, " ");
-		seats[i][3].status = strtok(NULL, " ");
-		seats[i][4].status = strtok(NULL, "\r\n");
+		int j = 0;
+		train->seats[i][j].status = strtok(line, " ");
+		j++;
+		train->seats[i][j].status = strtok(NULL, " ");
+		j++;
+		train->seats[i][j].status = strtok(NULL, " ");
+		j++;
+		train->seats[i][j].status = strtok(NULL, "\r\n");
 	}
-
-	train->seats = seats;
 
 	// close file
 	fclose(file);
@@ -143,33 +143,106 @@ int initTrain(struct Train *train, char *nameFile) {
  *
  */
 int updateTrain(struct Train *train, char *nameFile) {
-	printf("updateTrain");
+	printf("updateTrain - |%s|\n", nameFile);
 
-	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
-	if (semTWriter == SEM_FAILED) {
-		printf("\tSemaphore failed to open.");
-		return EXIT_FAILURE;
+//	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
+//	if (semTWriter == SEM_FAILED) {
+//		printf("\tSemaphore failed to open.");
+//		return EXIT_FAILURE;
+//	}
+
+	int errors = 0;
+
+	//Lock while we are writing the record.
+//	sem_wait(semTWriter);
+
+	/**
+	 * Read in the file again.
+	 * Compare the whole record to see if the difference of number of available seats matches to the swaps of X's and O's
+	 */
+	struct Train *oldTrain = malloc(sizeof(struct Train) + (sizeof(struct Seat) * TRAIN_ROWS * TRAIN_COLS));
+	initTrain(oldTrain, nameFile);
+
+	printf("train->availableSeats %d\n",train->availableSeats);
+	printf("oldTrain->availableSeats %d\n",oldTrain->availableSeats);
+
+	int seatDiff = train->availableSeats - oldTrain->availableSeats;
+	printf("seatDiff %d\n",seatDiff);
+
+	if (seatDiff < 0) {
+		printf("seatDiff < 0");
+		//Adding a Reservation
+		for (int i = 0; i < TRAIN_ROWS; i++) {
+			for (int j = 0; j < TRAIN_COLS; j++) {
+				char *newStatus = train->seats[i][j].status;
+				char *oldStatus = oldTrain->seats[i][j].status;
+
+				printf("\ntrain->seat[%d][%d] = %s",i,j,newStatus);
+				printf(" = %s",oldStatus);
+
+				if (strcmp(newStatus, oldStatus) == 0) {
+
+				} else {
+					seatDiff++;
+					printf(" +1 ");
+				}
+			}
+		}
+		//If things don't balance out, there are issues here and we are not going to write the file.
+		if (seatDiff != 0) {
+			errors = 1;
+		}
+	} else if (seatDiff > 0) {
+		printf("seatDiff > 0");
+		//Canceling a Reservation
+		for (int i = 0; i < TRAIN_ROWS; i++) {
+			for (int j = 0; j < TRAIN_COLS; j++) {
+				char *newStatus = train->seats[i][j].status;
+				char *oldStatus = oldTrain->seats[i][j].status;
+
+				printf("\ntrain->seat[%d][%d] = %s",i,j,newStatus);
+				printf(" = %s",oldStatus);
+
+				if (strcmp(newStatus, oldStatus) == 0) {
+
+				} else {
+					seatDiff--;
+					printf(" -1 ");
+				}
+			}
+		}
+		//If things don't balance out, there are issues here and we are not going to write the file.
+		if (seatDiff != 0) {
+			errors = 1;
+		}
+	} else {
+		printf("seatDiff == 0");
 	}
 
-	//TODO: Lock
-	sem_wait(&semTWriter);
+	printf("\nseatDiff %d\n",seatDiff);
 
-	//TODO: Read and Check for new Reservations?
+	//If no errors, write the files, otherwise return with an error.
+	if (errors == 0) {
+		printf("Files in sync....lets write it.\n");
+		FILE *trainFile = fopen(nameFile, "w");
+		//Write the new stuff?
+		fprintf(trainFile, "%d\n", train->availableSeats);
 
-	FILE *trainFile = fopen(nameFile, "w+");
+		int i;
+		for (i = 0; i < TRAIN_ROWS; i++) {
+			fprintf(trainFile, "%s %s %s %s\n", train->seats[i][0].status, train->seats[i][1].status,
+					train->seats[i][2].status, train->seats[i][3].status);
+		}
+		fclose(trainFile);
+		//post to the semaphore to unlock for someone else.
+//		sem_post(semTWriter);
+		printf("updateTrain Finished!\n");
+		return 0;
+	} else {
+		printf("The train file was out of synch so unsuccessful.\n");
+//		sem_post(semTWriter);
 
-	fprintf(trainFile, "%d\n", train->availableSeats);
-
-	int i;
-	for (i = 0; i < 20; i++) {
-		fprintf(trainFile, "%s %s %s %s\n", train->seats[i][1].status, train->seats[i][2].status,
-				train->seats[i][3].status, train->seats[i][4].status);
+		initTrain(train, nameFile);
+		return 1;//reload the train to try to reserve new seats.
 	}
-
-	fclose(trainFile);
-
-	//TODO: Unlock
-	sem_post(&semTWriter);
-	printf("updateTrain Finish");
-	return 0;
 }

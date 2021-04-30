@@ -33,15 +33,13 @@ struct Customer {
 
 struct Seat {
 	int id;
-//	int serverId;
-//	char *updateDate;
 	char *status; //Open, Reserved, or O / X
 };
 
 struct Train {
 	int id;
 	int availableSeats;
-	struct Seat **seats;
+	struct Seat seats[TRAIN_ROWS][TRAIN_COLS];
 };
 
 struct Ticket {
@@ -90,12 +88,13 @@ int* readQueue();
 struct tpool* initThreadPool(int num_threads);
 
 int initTrain(struct Train *train, char *nameFile);
+int updateTrain(struct Train *train, char *nameFile);
 
 void createReservation(int connectionFd);
 void inquireTicket(int connectionFd);
 void modifyReservation(int connectionFd);
 void cancelReservation(int connectionFd);
-void writeSummary(struct Reservation *res, struct Train *t, int *selectedSeats);
+void writeSummary(struct Reservation *res, struct Train *t);
 void readSeats(struct Train *t, char *fileName);
 
 #endif /* SRC_SERVER_HEADER_H_ */
