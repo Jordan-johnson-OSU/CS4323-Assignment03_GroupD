@@ -85,16 +85,17 @@ void serverThread(void *arg);
 void putQueue(int *clientSocket);
 int* readQueue();
 
-struct tpool* initThreadPool(int num_threads);
-
 int initTrain(struct Train *train, char *nameFile);
 int updateTrain(struct Train *train, char *nameFile);
+
+void createReservationJordan(int connectionFd);
+void writeSummaryJordan(struct Reservation *res, struct Train *t);
 
 void createReservation(int connectionFd);
 void inquireTicket(int connectionFd);
 void modifyReservation(int connectionFd);
 void cancelReservation(int connectionFd);
-void writeSummary(struct Reservation *res, struct Train *t);
+void writeSummary(struct Reservation *res, struct Train *t, int selectedSeats);
 void readSeats(struct Train *t, char *fileName);
 
 #endif /* SRC_SERVER_HEADER_H_ */

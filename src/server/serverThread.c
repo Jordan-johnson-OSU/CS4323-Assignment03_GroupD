@@ -21,9 +21,11 @@
 
 #include "serverHeader.h"
 
-
 /**
  *  This is the thread that interacts with the client and will control
+ *
+ *  Arguments:
+ *  	*arg : int pointer to the socket connection of the client.
  */
 void serverThread(void *arg) {
 	int newSocket = *((int*) arg);
@@ -58,7 +60,8 @@ void serverThread(void *arg) {
 
 		if (strcmp(client_message, "1") == 0) { // Create Reservation
 
-			createReservation(newSocket);
+			createReservationJordan(newSocket);
+//			createReservation(newSocket);
 
 		} else if (strcmp(client_message, "2") == 0) { // Inquire about Ticket
 
@@ -80,3 +83,4 @@ void serverThread(void *arg) {
 	close(newSocket);
 	pthread_exit(NULL);
 }
+

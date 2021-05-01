@@ -25,7 +25,15 @@
 #include "serverHeader.h"
 
 /**
+ *  Initialize the Train file into memory to be used by the program.
  *
+ *  Parameters:
+ *  	struct Train *train -> already allocated memory space where we are going to update the train information from the file.
+ *  	char *nameFile -> specific train file on the server.
+ *
+ *  Return:
+ *  	1 = failure
+ *  	0 = success;
  */
 int initTrain(struct Train *train, char *nameFile) {
 	printf("initTrain - |%s|\n", nameFile);
@@ -48,6 +56,7 @@ int initTrain(struct Train *train, char *nameFile) {
 
 	if (fstat(fd, &sb) == -1) {
 		perror("couldn't find file size");
+		return 1;
 	}
 
 	//Map the file to memory
@@ -70,7 +79,6 @@ int initTrain(struct Train *train, char *nameFile) {
 	close(fd);
 
 //	struct Seat seats[TRAIN_ROWS][TRAIN_COLS]; // = malloc((sizeof(struct Seat)*TRAIN_ROWS*TRAIN_COLS));
-
 
 //	for (int i = 0; i < sb.st_size; i++) {
 //		//pull new line from each file
@@ -107,7 +115,7 @@ int initTrain(struct Train *train, char *nameFile) {
 
 	if (line == NULL) {
 		perror("Unable to allocate memory for the line buffer.");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	//pull new line from each file
@@ -138,23 +146,29 @@ int initTrain(struct Train *train, char *nameFile) {
 }
 
 /**
- * TODO: Is there a way to check if the train was just updated by another client?
+ * Update Train, updates the train file on the server implementing a semaphore to lock.  It has a rudimentary algorithm of comparing states to see if the someone else has updated the train since last checked.
  *
+ * Parameters:
+ * 		struct Train *train -> updated train record with new seats reserved, or cancelled.
+ *		char *nameFile -> name of the train file on the server.
  *
+ * return
+ * 		1 = failure updating train due to sync issues.
+ * 		0 = successful
  */
 int updateTrain(struct Train *train, char *nameFile) {
 	printf("updateTrain - |%s|\n", nameFile);
 
-//	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
-//	if (semTWriter == SEM_FAILED) {
-//		printf("\tSemaphore failed to open.");
-//		return EXIT_FAILURE;
-//	}
+	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 1);
+	if (semTWriter == SEM_FAILED) {
+		printf("\tSemaphore failed to open.");
+		return EXIT_FAILURE;
+	}
 
 	int errors = 0;
 
 	//Lock while we are writing the record.
-//	sem_wait(semTWriter);
+	sem_wait(semTWriter);
 
 	/**
 	 * Read in the file again.
@@ -163,11 +177,11 @@ int updateTrain(struct Train *train, char *nameFile) {
 	struct Train *oldTrain = malloc(sizeof(struct Train) + (sizeof(struct Seat) * TRAIN_ROWS * TRAIN_COLS));
 	initTrain(oldTrain, nameFile);
 
-	printf("train->availableSeats %d\n",train->availableSeats);
-	printf("oldTrain->availableSeats %d\n",oldTrain->availableSeats);
+	printf("train->availableSeats %d\n", train->availableSeats);
+	printf("oldTrain->availableSeats %d\n", oldTrain->availableSeats);
 
 	int seatDiff = train->availableSeats - oldTrain->availableSeats;
-	printf("seatDiff %d\n",seatDiff);
+	printf("seatDiff %d\n", seatDiff);
 
 	if (seatDiff < 0) {
 		printf("seatDiff < 0");
@@ -177,8 +191,8 @@ int updateTrain(struct Train *train, char *nameFile) {
 				char *newStatus = train->seats[i][j].status;
 				char *oldStatus = oldTrain->seats[i][j].status;
 
-				printf("\ntrain->seat[%d][%d] = %s",i,j,newStatus);
-				printf(" = %s",oldStatus);
+				printf("\ntrain->seat[%d][%d] = %s", i, j, newStatus);
+				printf(" = %s", oldStatus);
 
 				if (strcmp(newStatus, oldStatus) == 0) {
 
@@ -200,8 +214,8 @@ int updateTrain(struct Train *train, char *nameFile) {
 				char *newStatus = train->seats[i][j].status;
 				char *oldStatus = oldTrain->seats[i][j].status;
 
-				printf("\ntrain->seat[%d][%d] = %s",i,j,newStatus);
-				printf(" = %s",oldStatus);
+				printf("\ntrain->seat[%d][%d] = %s", i, j, newStatus);
+				printf(" = %s", oldStatus);
 
 				if (strcmp(newStatus, oldStatus) == 0) {
 
@@ -219,7 +233,7 @@ int updateTrain(struct Train *train, char *nameFile) {
 		printf("seatDiff == 0");
 	}
 
-	printf("\nseatDiff %d\n",seatDiff);
+	printf("\nseatDiff %d\n", seatDiff);
 
 	//If no errors, write the files, otherwise return with an error.
 	if (errors == 0) {
@@ -235,14 +249,17 @@ int updateTrain(struct Train *train, char *nameFile) {
 		}
 		fclose(trainFile);
 		//post to the semaphore to unlock for someone else.
-//		sem_post(semTWriter);
+		sem_post(semTWriter);
+
+		initTrain(train, nameFile);
+
 		printf("updateTrain Finished!\n");
 		return 0;
 	} else {
 		printf("The train file was out of synch so unsuccessful.\n");
-//		sem_post(semTWriter);
+		sem_post(semTWriter);
 
 		initTrain(train, nameFile);
-		return 1;//reload the train to try to reserve new seats.
+		return 1;		//reload the train to try to reserve new seats.
 	}
 }

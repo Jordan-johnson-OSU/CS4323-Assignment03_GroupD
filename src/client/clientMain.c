@@ -6,7 +6,7 @@
  Date		 : 4/02/2021
  Copyright   : Copyright 2021 MIT License
 
- Description :
+ Description :  Main client program which connects to a server via the supplied port and defaults to 9090.  This is a shell to have multiple client threads if needed for testing.
  ============================================================================
  */
 

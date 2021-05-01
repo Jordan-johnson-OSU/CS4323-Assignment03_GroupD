@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 	}
 
 
-	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 0);
+	sem_t *semTWriter = sem_open(SEM_TRAIN_WRITER, O_CREAT, 0660, 1);
 	if (semTWriter == SEM_FAILED) {
 		printf("\tSemaphore failed to open.");
 		return EXIT_FAILURE;

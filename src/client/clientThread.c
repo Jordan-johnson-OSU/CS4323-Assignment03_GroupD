@@ -27,8 +27,12 @@
 #define PORT 9090
 #define SA struct sockaddr
 
+
 /**
+ *  Thread for the client to run in and connect to a specific port or default to 9090. The client uses an infinite loop unless told to exit for a dynamic experience.
  *
+ *  Parameters:
+ *  	void *arg -> the server port to connect.
  */
 void* clientThread(void *arg) {
 	printf("In thread\n");
